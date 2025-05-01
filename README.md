@@ -75,7 +75,7 @@ Discovered a bug or do you have an improvement? Create an <a href="https://githu
 Release version numbers: YEAR.WEEK
 
 - 2025.18
-  - initial release
+  - initial release (preview)
 
 # 🤝 Contributors
 

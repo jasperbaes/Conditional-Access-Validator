@@ -3,14 +3,18 @@
 # - TODO: get organization name from MgContext
 # - TODO: user risk and sign-in risk
 # - TODO: device properties
+# - TODO: add other access controls
+# - TODO: add all session controls
 # Issue: Users can still be excluded in another persona
 
 param (
     [switch]$IncludeReportOnly
 )
 
-$Global:CURRENTVERSION = "2025.18.1"
+# Get current version
+$jsonContent = Get-Content -Path "./assets/latestVersion.json" -Raw | ConvertFrom-Json
 
+$Global:CURRENTVERSION = $jsonContent.latestVersion
 $Global:LATESTVERSION = ""
 $Global:UPTODATE = $true 
 
@@ -28,7 +32,7 @@ Write-Host " Created by Jasper Baes - https://github.com/jasperbaes/Maester-Cond
 try {
     # Fetch latest version from GitHub
     Write-OutputInfo "Checking version"
-    $response = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/jasperbaes/Maester-Conditional-Access-Generator/main/assets/latestVersion.json'
+    $response = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/jasperbaes/Maester-Conditional-Access-Test-Generator/main/assets/latestVersion.json'
     $LATESTVERSION = $response.latestVersion
 
     # If latest version from GitHub does not match script version, display update message
@@ -36,7 +40,7 @@ try {
         $Global:UPTODATE = $false
         Write-OutputError "Update available! Run 'git pull' to update from $CURRENTVERSION --> $LATESTVERSION"
     } else {
-        Write-OutputSuccess "Maester Conditional Access Generator version is up to date"
+        Write-OutputSuccess "Maester Conditional Access Test Generator version is up to date"
     }
 } catch { }
 
@@ -145,14 +149,15 @@ foreach ($conditionalAccessPolicy in $conditionalAccessPolicies) {
                                 
                 foreach ($ipRange in $allIPRanges) { # loop over IP ranges
                     # Get all device platforms
-                    [array]$alldevicePlatforms = Get-devicePlatforms $conditionalAccessPolicy.conditions.platforms.includePlatforms $conditionalAccessPolicy.conditions.platforms.excludePlatforms
-                    
-                    # - SignInRiskLevel 
-                    # - SignInRiskLevel (inverse) 
-                    # - UserRiskLevel
-                    # - UserRiskLevel (inverse)
+                    [array]$alldevicePlatforms = Get-devicePlatforms $conditionalAccessPolicy.conditions.platforms.includePlatforms $conditionalAccessPolicy.conditions.platforms.excludePlatforms                    
 
                     foreach ($devicePlatform in $alldevicePlatforms) { # loop over IP ranges
+
+                        # - TODO: SignInRiskLevel 
+                        # - TODO: UserRiskLevel
+                        # - TODO: Authenticationflow
+                        # - TODO: DeviceProperties
+                        # - TODO: InsiderRisk
 
                         # if user or app or IP range is excluded, we invert the test to a -Not
                         $invertedTest = $user.type -eq "excluded" -or $app.type -eq "excluded" -or $ipRange.type -eq "excluded" -or $devicePlatform.type -eq "excluded"
@@ -178,6 +183,12 @@ foreach ($conditionalAccessPolicy in $conditionalAccessPolicies) {
                         if ($conditionalAccessPolicy.grantControls.builtInControls -contains "compliantDevice") {
                             $testName = if ($invertedTest) { "$($user.UPN) should not have a compliant device for application $($app.applicationName)" } else { "$($user.UPN) should have a compliant device for application $($app.applicationName)" }
                             $MaesterTests += Generate-MaesterTest $invertedTest 'compliantDevice' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $conditionalAccessPolicy.conditions.clientAppTypes $ipRange.IPrange $devicePlatform.OS
+                            $testsCreatedForThisCAPolicy++
+                        }
+
+                        if ($conditionalAccessPolicy.grantControls.builtInControls -contains "domainJoinedDevice") {
+                            $testName = if ($invertedTest) { "$($user.UPN) should not have a domain joined device for application $($app.applicationName)" } else { "$($user.UPN) should have a domain joined device for application $($app.applicationName)" }
+                            $MaesterTests += Generate-MaesterTest $invertedTest 'domainJoinedDevice' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $conditionalAccessPolicy.conditions.clientAppTypes $ipRange.IPrange $devicePlatform.OS
                             $testsCreatedForThisCAPolicy++
                         }
                     }
@@ -286,7 +297,7 @@ $template = @"
                     .color-accent { color: #ff9142 !important }
                     .color-lightgrey { color:rgb(161, 161, 161) !important }
 
-                    .bg-orange: { background-color: #ff9142 !important; }
+                    .bg-orange { background-color: #ff9142 !important; }
                     .bg-lightorange { background-color: #ffe9db !important; border-radius: 10px; }
                     .bg-lightgrey { background-color: rgb(242, 242, 242) !important; border-radius: 10px; }
                     
@@ -308,16 +319,61 @@ $template = @"
                     .rounded { border-radius: 15px !important; }
                     button.active { color: #ff9142 !important }
                     .accordion-button:not(.collapsed) { background-color: white !important; }
+                    .pointer:hover { cursor: pointer}
               </style>
               <title>&#128293; Maester Conditional Access Test Generator</title>
             </head>
             <body>
-              <div class="container mt-5 mb-5">
+              <div class="container mt-5 mb-5 position-relative">
                 <h1 class="mb-0 text-center font-bold color-primary"> 
                     <span class="icon-pulse">&#128293;</span> Maester Conditional Access 
                     <span class="font-bold color-white px-2 py-0 ">Test Generator</span>
                 </h1>
                 <p class="text-center mt-3 mb-2 color-secondary">Automatically generate Maester test for your Conditional Access policies</p>
+                <i class="bi bi-question-circle position-absolute pointer" style="top: 10px; right: 10px;" data-bs-toggle="modal" data-bs-target="#infoModal"></i>
+
+                <div class="modal fade" id="infoModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h1 class="modal-title fs-5 font-bold">About the Maester CA Test Generator</h1>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p>The goal of the Maester CA Test Generator is to help you automatically validate the effectiveness of a Conditional Access setup.</p>
+                                
+                                <div class="alert alert-warning d-flex align-items-center fade show" role="alert">
+                                    <i class="bi bi-exclamation-circle me-3"></i>
+                                    <div>
+                                        This project is <span class="font-bold">open-source</span> and may contain errors or inaccuracies. No one can be held responsible for any issues arising from the use of this project. 
+                                    </div>
+                                </div>
+
+                                <p>The tool creates a set of Maester tests based on the current Conditional Access setup of the tenant, rather than the desired state. Therefore, the output might need adjustments to accurately represent the desired state.</p>
+                                
+                                <hr class="mt-3 mb-3 w-100"/>
+
+                                <p>Here's how you can contribute to our mission:</p>
+
+                                <ul>
+                                    <li class="text-accent font-bold mb-0 mt-2">Use it: <span class="">Use the tool and other referenced tools of the <a class="color-secondary font-bold" href="https://jbaes.be/Conditional-Access-Blueprint" target="_blank">Conditional Access Blueprint</a>! That's why they were build.</span></li>
+                                    <li class="text-accent font-bold mb-0 mt-2">Talk about it: <span class="">Engage in discussions about this, or invite me to spreak about the tool.</span></li>
+                                    <li class="text-accent font-bold mb-0 mt-2">Feedback or share ideas: <span class="">Have ideas or suggestions to improve this tool? Message me on <a class="font-bold" href="https://www.linkedin.com/in/jasper-baes" target="_blank">LinkedIn</a> (Jasper Baes)</span></li>
+                                    <li class="text-accent font-bold mb-0 mt-2">Contribute: <span class="">Join efforts to improve the quality, code and usability of this tool.</span></li>
+                                    <li class="text-accent font-bold mb-0 mt-2">Donate: <span class="">Consider supporting financially to cover costs (domain name, hosting, development costs, time, production costs, professional travel, ...) or future investments: donate on</span>
+                                        <div class="mt-2">
+                                            <a class="font-bold" href="https://www.buymeacoffee.com/jasperbaes" target="_blank"><button type="button" class="btn bg-orange text-white font-bold mb-3">☕ Buy Me A Coffee</button></a>
+                                        </div>    
+                                    </li>
+                                </ul>
+                                <p class="small text-secondary">The Maester Conditional Access Test Generator was developed entirely on my own time, without any support or involvement from any organization or employer.</p>
+                                <hr class="mt-3 mb-3 w-100"/>
+                                <p class="small text-secondary">Please be aware that the Maester Conditional Access Test Generator is intended solely for individual administrators' personal use. It is not licensed for use by organizations seeking financial gain. This restriction is in place to ensure the responsible and fair use of the tools. Admins are encouraged to leverage this code to enhance their own understanding and management within their respective environments, but any commercial or organizational profit-driven usage is strictly prohibited. If interested to use this for financial gain, contact me. For all generated reports, the header and footer and modal of the HTML report must be unchanged.</p>
+                                <p class="small text-secondary">Thank you for respecting these usage terms and contributing to a fair and ethical software community. </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <div class="d-flex justify-content-center mt-5">
                     <div class="row w-75">
