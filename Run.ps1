@@ -12,13 +12,13 @@ $Global:CURRENTVERSION = "2025.18.1"
 $Global:LATESTVERSION = ""
 $Global:UPTODATE = $true 
 
+# Import functions.ps1
+$subScriptpath = [System.IO.Path]::Combine($PSScriptRoot, 'functions.ps1')
+. $subScriptpath
+
 Write-Host "`n ## Maester Conditional Access Generator ## " -NoNewline; Write-Host "v$CURRENTVERSION" -ForegroundColor DarkGray
 Write-Host " Part of the Conditional Access Blueprint - https://jbaes.be/Conditional-Access-Blueprint" -ForegroundColor DarkGray
 Write-Host " Created by Jasper Baes - https://github.com/jasperbaes/Maester-Conditional-Access-Generator`n" -ForegroundColor DarkGray
-
-function Write-OutputError { param ( [string]$Message ) Write-Host " [" -ForegroundColor White -NoNewline; Write-Host "-" -ForegroundColor Red -NoNewline; Write-Host "] $Message" -ForegroundColor White }
-function Write-OutputSuccess { param ( [string]$Message ) Write-Host " [" -ForegroundColor White -NoNewline; Write-Host "+" -ForegroundColor Green -NoNewline; Write-Host "] $Message" -ForegroundColor White }
-function Write-OutputInfo { param ( [string]$Message ) Write-Host " [" -ForegroundColor White -NoNewline; Write-Host "i" -ForegroundColor Blue -NoNewline; Write-Host "] $Message" -ForegroundColor White }
 
 try {
     # Fetch latest version from GitHub
@@ -108,276 +108,6 @@ Write-OutputInfo "Filtering enabled Conditional Access policies"
 $conditionalAccessPolicies = $conditionalAccessPolicies | Where-Object { $_.state -eq 'enabled' }
 Write-OutputSuccess "$($conditionalAccessPolicies.count) enabled Conditional Access policies detected"
 
-# Returns the UPN by a given user ID
-function Get-UPNbyID {
-    param (
-        [string]$userID
-    )
-
-    try {
-        $user = Invoke-MgGraphRequest -Method GET ('https://graph.microsoft.com/v1.0/users/' + $userID + '?$select=userPrincipalName')
-        
-        if ($user) {
-            return $user.userPrincipalName
-        } else {
-            return "N/A"
-        }
-    } catch {
-        return "N/A"
-    }
-}
-
-# Returns 5 random users of the tenant that are not in the array $excludeUsers or member of the groups in $excludeGroups
-function Get-RandomUsersOfTheTenant {
-    param (
-        $scope,
-        $excludeUsers,
-        $excludeGroups
-    )
-
-    try {
-        [array]$randomUsers = @() # create empty array
-
-        if ($scope -eq 'tenant') {
-            $users = Invoke-MgGraphRequest -Method GET ('https://graph.microsoft.com/v1.0/users?$select=id,userPrincipalName')
-            $usersList = $users.value
-        } else { # scope is a groupID
-            $users = Invoke-MgGraphRequest -Method GET ('https://graph.microsoft.com/v1.0/groups/' + $scope + '?$select=id,displayName&$expand=members')
-            $usersList = $users.members
-        }
-        
-        if ($usersList.Count -ge 5) {
-            $randomUsersList = $usersList | Get-Random -Count 5   
-        } else {
-            $randomUsersList = $usersList 
-        }
-
-        # TODO: checken ofdat deze users niet in $excludeUsers of $excludeGroups zitten
-        # TODO: changen ofdat er geen duplicaten zitten tussen de randoms
-
-        foreach ($randomUser in $randomUsersList) {
-            $randomUsers += @{
-                userID = $randomUser.id
-                UPN = $randomUser.userPrincipalName
-            }
-        }
-
-        return $randomUsers
-    } catch {}
-}
-
-function Get-CAPUsers {
-    param (
-        [Parameter(Mandatory=$true)]
-        $CAUsersObject
-    )
-
-    $allUsers = @() # create empty array
-
-    [array]$includeUsers = $CAUsersObject.includeUsers
-    [array]$excludeUsers = $CAUsersObject.excludeUsers
-    [array]$includeGroups = $CAUsersObject.includeGroups
-    [array]$excludeGroups = $CAUsersObject.excludeGroups
-
-    # add all included users. If the policy is scope to 'All', then add 5 random users
-    foreach ($userID in $includeUsers) {
-        if ($userID -eq "All") {
-            [array]$randomUsersOfTheTenant = Get-RandomUsersOfTheTenant 'tenant' $excludeUsers $excludeGroups
-            
-            foreach ($randomUser in $randomUsersOfTheTenant) {
-                $allUsers += @{
-                    userID = $randomUser.userID
-                    UPN = $randomUser.UPN
-                    type = "included"
-                }
-            }
-        } else {
-            $UPN = Get-UPNbyID $userID
-            if ($UPN -ne "N/A") {
-                $allUsers += @{
-                    userID = $userID
-                    UPN = $UPN
-                    type = "included"
-                }
-            }
-        }
-    }
-
-    # add all excluded users
-    foreach ($userID in $excludeUsers) {  
-        if ($userID -ne "All") {
-            $UPN = Get-UPNbyID $userID
-            if ($UPN -ne "N/A") {
-                $allUsers += @{
-                    userID = $userID
-                    UPN = Get-UPNbyID $userID
-                    type = "excluded"
-                }
-            }
-        }
-    }
-
-    # For an included group, add 5 random users
-    foreach ($groupID in $includeGroups) {
-        [array]$randomUsersOfTheTenant = Get-RandomUsersOfTheTenant $groupID $excludeUsers $excludeGroups
-
-        foreach ($randomUser in $randomUsersOfTheTenant) {
-            $allUsers += @{
-                userID = $randomUser.userID
-                UPN = $randomUser.UPN
-                type = "included"
-            }
-        }
-    }
-
-    # For an included group, add 5 random users
-    foreach ($groupID in $excludeGroups) {
-        [array]$randomUsersOfTheTenant = Get-RandomUsersOfTheTenant $groupID @() @()
-
-        foreach ($randomUser in $randomUsersOfTheTenant) {
-            $allUsers += @{
-                userID = $randomUser.userID
-                UPN = $randomUser.UPN
-                type = "excluded"
-            }
-        }
-    }
-
-    return $allUsers
-}
-
-# Returns the UPN by a given user ID
-function Get-AppNamebyID {
-    param (
-        [string]$appID
-    )
-
-    try {
-        # Try if the application is a Service Principal
-        $app = Invoke-MgGraphRequest -Method GET ('https://graph.microsoft.com/v1.0/servicePrincipals/' + $appID)
-        
-        if ($app) {
-            return $app.displayName
-        }
-    } catch {
-        try {
-            # When not a Service Principal, try if the application is a application template
-            $app2 = Invoke-MgGraphRequest -Method GET ('https://graph.microsoft.com/v1.0/applicationTemplates/' + $appID)
-            return $app2.displayName
-            
-        } catch {
-            try {
-                # When not a Service Principal and not a template, try if the application is an app registration
-                $app3 = Invoke-MgGraphRequest -Method GET ('https://graph.microsoft.com/v1.0/applications?$filter=appId eq ' + "'" + $appID + "'")
-                return $app3.value[0].displayName
-            } catch {            
-                return "N/A"
-            }
-        }
-    }
-}
-
-function Get-CAPApplications {
-    param (
-        [Parameter(Mandatory=$true)]
-        $CAApplicationsObject
-    )
-
-    $allApplications = @() # create empty array
-
-    [array]$includeApplications = $CAApplicationsObject.includeApplications
-    [array]$excludeApplications = $CAApplicationsObject.excludeApplications
-
-    if ($includeApplications -contains "All" -or $includeApplications -contains "Office365") { # add 3 default application if the policy is scoped to 'All' or 'Office365'
-        $allApplications += @{
-            applicationID = "00000002-0000-0ff1-ce00-000000000000"
-            applicationName = "Office 365 Exchange Online"
-            type = "included"
-        }
-        $allApplications += @{
-            applicationID = "00000003-0000-0ff1-ce00-000000000000"
-            applicationName = "Office 365 SharePoint Online"
-            type = "included"
-        }
-        $allApplications += @{
-            applicationID = "00000006-0000-0ff1-ce00-000000000000"
-            applicationName = "Office 365 Portal"
-            type = "included"
-        }
-    }
-
-    if ($excludeApplications -contains "All" -or $excludeApplications -contains "Office365") { # add 3 default application if the policy is scoped to 'All' or 'Office365
-        $allApplications += @{
-            applicationID = "00000002-0000-0ff1-ce00-000000000000"
-            applicationName = "Office 365 Exchange Online"
-            type = "excluded"
-        }
-        $allApplications += @{
-            applicationID = "00000003-0000-0ff1-ce00-000000000000"
-            applicationName = "Office 365 SharePoint Online"
-            type = "excluded"
-        }
-        $allApplications += @{
-            applicationID = "00000006-0000-0ff1-ce00-000000000000"
-            applicationName = "Office 365 Portal"
-            type = "excluded"
-        }
-    }
-
-    foreach ($appID in $includeApplications) { 
-        if ($appID -ne "All" -and $appID -ne "Office365") {
-            $allApplications += @{
-                applicationID = $appID
-                applicationName = Get-AppNamebyID $appID
-                type = "included"
-            }
-        }
-    }
-
-    foreach ($appID in $excludeApplications) { 
-        if ($appID -ne "All" -and $appID -ne "Office365") {
-            $allApplications += @{
-                applicationID = $appID
-                applicationName = Get-AppNamebyID $appID
-                type = "excluded"
-            }
-        }
-    }
-
-    # todo: max 3
-    # todo: if 'All' --> max 3 randoms
-
-    return $allApplications
-}
-
-function Generate-MaesterTest {
-    param (
-        $inverted, # if 'inverted' is true, then the Maester test should include a -Not
-        $expectedControl, # 'expectedControl' can be 'block' or 'mfa' or 'passwordChange' or 'compliantDevice'
-        $testTitle,
-        $CAPolicyID,
-        $CAPolicyName,
-        $userID,
-        $UPN,
-        $appID,
-        $appName,
-        $clientApp
-    )
-
-    return New-Object PSObject -Property @{
-        inverted = $inverted
-        expectedControl = $expectedControl
-        testTitle = $testTitle
-        CAPolicyID = $CAPolicyID
-        CAPolicyName = $CAPolicyName
-        userID = $userID
-        UPN = $UPN
-        appID = $appID
-        appName = $appName
-        clientApp = $clientApp
-    }
-}
-
 Write-OutputInfo "Generating Maester tests"
 
 [array]$MaesterTests = @() # Create empty array
@@ -385,6 +115,8 @@ Write-OutputInfo "Generating Maester tests"
 # Loop over all discovered Conditional Access Policies
 foreach ($conditionalAccessPolicy in $conditionalAccessPolicies) {
     Write-OutputInfo "Generating Maester test for '$($conditionalAccessPolicy.displayName)' ($($conditionalAccessPolicy.id)) -- $($allUsers.count) users, $($allApplications.count) applications in test scope"
+
+    $testsCreatedForThisCAPolicy = 0
 
     # Get included and excluded users for tests
     [array]$allUsers = Get-CAPUsers $conditionalAccessPolicy.conditions.users
@@ -396,75 +128,62 @@ foreach ($conditionalAccessPolicy in $conditionalAccessPolicies) {
             # Write-Output "   $($app.applicationName)"
             foreach ($clientApp in $conditionalAccessPolicy.conditions.clientAppTypes) { # loop over all clientApps of the policy
                 # Write-Output "   $($clientApp)"
-
-                # - Country / IP 
-                # - Country / IP (inverse) 
-                # - SignInRiskLevel 
-                # - SignInRiskLevel (inverse) 
-                # - UserRiskLevel
-                # - UserRiskLevel (inverse)
-                # - DevicePlatform
-                # - DevicePlatform (inverse)
-
-                # if user and application are included
-                if ($user.type -eq "included" -and $app.type -eq "included") {
-                    if ($conditionalAccessPolicy.grantControls.builtInControls -contains "block") {
-                        $testName = "$($user.UPN) should be blocked for application $($app.applicationName)"
-                        $MaesterTests += Generate-MaesterTest $false 'block' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $conditionalAccessPolicy.conditions.clientAppTypes
-                    }
-
-                    if ($conditionalAccessPolicy.grantControls.builtInControls -contains "mfa") { # TODO: I think that if the action is 'passwordChange', then 'mfa' is also given as an action. To check. And to check if me must leave this out then...
-                        $testName = "$($user.UPN) should have MFA for application $($app.applicationName)"
-                        $MaesterTests += Generate-MaesterTest $false 'mfa' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $conditionalAccessPolicy.conditions.clientAppTypes
-                    }
-
-                    if ($conditionalAccessPolicy.grantControls.builtInControls -contains "passwordChange") { 
-                        $testName = "$($user.UPN) should have a password reset for application $($app.applicationName)"
-                        $MaesterTests += Generate-MaesterTest $false 'passwordChange' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $conditionalAccessPolicy.conditions.clientAppTypes
-                    }
-
-                    if ($conditionalAccessPolicy.grantControls.builtInControls -contains "compliantDevice") {
-                        $testName = "$($user.UPN) should have a compliant device for application $($app.applicationName)"
-                        $MaesterTests += Generate-MaesterTest $false 'compliantDevice' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $conditionalAccessPolicy.conditions.clientAppTypes
-                    }
-                }
                 
-                # if user or application are excluded --> inverted
-                if ($user.type -eq "excluded" -or $app.type -eq "excluded") {
+                # Get all IP ranges. If the CA Policy does not use Named locations, an IP range with 'All' is returned. This 'empty' IP range is required to continue the foreach loop below.
+                [array]$allIPRanges = Get-IPRanges $conditionalAccessPolicy.conditions.locations.includeLocations $conditionalAccessPolicy.conditions.locations.excludeLocations
+                                
+                foreach ($ipRange in $allIPRanges) { # loop over IP ranges
+                    # - SignInRiskLevel 
+                    # - SignInRiskLevel (inverse) 
+                    # - UserRiskLevel
+                    # - UserRiskLevel (inverse)
+                    # - DevicePlatform
+                    # - DevicePlatform (inverse)
+
+                    # if user or app or IP range is excluded, we invert the test to a -Not
+                    $invertedTest = $user.type -eq "excluded" -or $app.type -eq "excluded" -or $ipRange.type -eq "excluded"
+                    
                     if ($conditionalAccessPolicy.grantControls.builtInControls -contains "block") {
-                        $testName = "$($user.UPN) should not be blocked for application $($app.applicationName)"
-                        $MaesterTests += Generate-MaesterTest $true 'block' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $conditionalAccessPolicy.conditions.clientAppTypes
+                        $testName = if ($invertedTest) { "$($user.UPN) should not be blocked for application $($app.applicationName)" } else { "$($user.UPN) should be blocked for application $($app.applicationName)" }
+                        $MaesterTests += Generate-MaesterTest $invertedTest 'block' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $conditionalAccessPolicy.conditions.clientAppTypes $ipRange.IPrange
+                        $testsCreatedForThisCAPolicy++
                     }
 
                     if ($conditionalAccessPolicy.grantControls.builtInControls -contains "mfa") { # TODO: I think that if the action is 'passwordChange', then 'mfa' is also given as an action. To check. And to check if me must leave this out then...
-                        $testName = "$($user.UPN) should not have MFA for application $($app.applicationName)"
-                        $MaesterTests += Generate-MaesterTest $true 'mfa' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $conditionalAccessPolicy.conditions.clientAppTypes
+                        $testName = if ($invertedTest) { "$($user.UPN) should not have MFA for application $($app.applicationName)" } else { "$($user.UPN) should have MFA for application $($app.applicationName)" }
+                        $MaesterTests += Generate-MaesterTest $invertedTest 'mfa' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $conditionalAccessPolicy.conditions.clientAppTypes $ipRange.IPrange
+                        $testsCreatedForThisCAPolicy++
                     }
 
                     if ($conditionalAccessPolicy.grantControls.builtInControls -contains "passwordChange") { 
-                        $testName = "$($user.UPN) should not have a password reset for application $($app.applicationName)"
-                        $MaesterTests += Generate-MaesterTest $true 'passwordChange' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $conditionalAccessPolicy.conditions.clientAppTypes
+                        $testName = if ($invertedTest) { "$($user.UPN) should not have a password reset for application $($app.applicationName)" } else { "$($user.UPN) should have a password reset for application $($app.applicationName)" }
+                        $MaesterTests += Generate-MaesterTest $invertedTest 'passwordChange' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $conditionalAccessPolicy.conditions.clientAppTypes $ipRange.IPrange
+                        $testsCreatedForThisCAPolicy++
                     }
 
                     if ($conditionalAccessPolicy.grantControls.builtInControls -contains "compliantDevice") {
-                        $testName = "$($user.UPN) should not have a compliant device for application $($app.applicationName)"
-                        $MaesterTests += Generate-MaesterTest $true 'compliantDevice' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $conditionalAccessPolicy.conditions.clientAppTypes
+                        $testName = if ($invertedTest) { "$($user.UPN) should not have a compliant device for application $($app.applicationName)" } else { "$($user.UPN) should have a compliant device for application $($app.applicationName)" }
+                        $MaesterTests += Generate-MaesterTest $invertedTest 'compliantDevice' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $conditionalAccessPolicy.conditions.clientAppTypes $ipRange.IPrange
+                        $testsCreatedForThisCAPolicy++
                     }
+                    
                 }
             }
         }
     }
+
+    Write-OutputSuccess "$testsCreatedForThisCAPolicy tests created for '$($conditionalAccessPolicy.displayName)' ($($conditionalAccessPolicy.id))"
 }
 
 Write-OutputSuccess "Generated $($MaesterTests.count) Maester tests"
-# Write-Output $MaesterTests
+Write-Output $MaesterTests
 
 ##########################
 # MAESTER TEST GENERATOR #
 ##########################
 
 
-Write-OutputInfo "Translating to the Maester test layout"
+Write-OutputInfo "Translating to the Maester code"
 $templateMaester = @"
 
 Describe "$($ORGANIZATIONNAME).ConditionalAccess" {`n
@@ -477,6 +196,10 @@ foreach ($MaesterTest in $MaesterTests) {
     
     if ($MaesterTest.clientApp -ne "all") { # don't add to the test if 'all'
         $templateMaester += "-ClientAppType `'$($MaesterTest.clientApp)`' "
+    }
+
+    if ($MaesterTest.IPRange -and $MaesterTest.IPRange -ne "All") {
+        $templateMaester += "-Country FR -IpAddress `'$($MaesterTest.IPRange)`' "
     }
 
     $templateMaester += "`n"
