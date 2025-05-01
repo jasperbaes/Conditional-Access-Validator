@@ -257,7 +257,8 @@ function Generate-MaesterTest {
         $appID,
         $appName,
         $clientApp,
-        $IPRange
+        $IPRange,
+        $devicePlatform
     )
 
     return New-Object PSObject -Property @{
@@ -272,6 +273,7 @@ function Generate-MaesterTest {
         appName = $appName
         clientApp = $clientApp
         IPRange = $IPRange
+        devicePlatform = $devicePlatform
     }
 }
 
@@ -337,4 +339,41 @@ function Get-IPRanges {
     }
 
     return $allIPRanges
+}
+
+
+# This function returns ...
+function Get-devicePlatforms {
+    param (
+        $includedDevicePlatforms,
+        $excludedDevicePlatforms
+    ) 
+    
+    $allPlatforms = @() # create empty array
+
+    # if the CA policy has no included or excluded location set, then create an 'empty' IP range. This will not be added to the test itself. This object is required so it continues in the nested forEach loop
+    if ($includedDevicePlatforms.count -eq 0 -or $excludedDevicePlatforms.count -eq 0) {
+        $allPlatforms += @{
+            OS = 'All'
+            type = "included" # it does not matter if this is 'included' or 'excluded'. We will filter these out when generating the Maester test code
+        }
+    }
+
+    # Loop over all includedDevicePlatforms
+    foreach ($devicePlatform in $includedDevicePlatforms) {
+        $allPlatforms += @{
+            OS = $devicePlatform
+            type = "included"
+        }
+    }
+
+     # Loop over all excludedDevicePlatforms
+     foreach ($devicePlatform in $excludedDevicePlatforms) {
+        $allPlatforms += @{
+            OS = $devicePlatform
+            type = "excluded"
+        }
+    }
+
+    return $allPlatforms
 }
