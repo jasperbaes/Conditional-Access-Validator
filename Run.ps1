@@ -6,6 +6,7 @@
 # - in HTML: de maester test code met 'view more' knop en met copy paste knop
 # - ook policies in reportOnly door een variabele te wijzigen
 # - laatste lijn "generated X Maester test in 23 seconds"
+# - X CA policies, Y simulations generated, Y time to complete
 # Issue: Users can still be excluded in another persona
 
 $Global:CURRENTVERSION = "2025.18.1"
@@ -15,6 +16,9 @@ $Global:UPTODATE = $true
 # Import functions.ps1
 $subScriptpath = [System.IO.Path]::Combine($PSScriptRoot, 'functions.ps1')
 . $subScriptpath
+
+# Start the timer
+$startTime = Get-Date
 
 Write-Host "`n ## Maester Conditional Access Generator ## " -NoNewline; Write-Host "v$CURRENTVERSION" -ForegroundColor DarkGray
 Write-Host " Part of the Conditional Access Blueprint - https://jbaes.be/Conditional-Access-Blueprint" -ForegroundColor DarkGray
@@ -179,7 +183,7 @@ foreach ($conditionalAccessPolicy in $conditionalAccessPolicies) {
 }
 
 Write-OutputSuccess "Generated $($MaesterTests.count) Maester tests"
-Write-Output $MaesterTests
+# Write-Output $MaesterTests
 
 ##########################
 # MAESTER TEST GENERATOR #
@@ -225,6 +229,11 @@ $templateMaester += "}"
 # $templateMaester # Uncomment for debugging purposes
 
 Write-OutputSuccess "Translated to the Maester test layout"
+$endTime = Get-Date # end script timer
+
+$elapsedTime = $endTime - $startTime
+$minutes = [math]::Floor($elapsedTime.TotalMinutes)
+$seconds = $elapsedTime.Seconds
 
 
 # ##########
@@ -272,10 +281,12 @@ $template = @"
 
                     .bg-orange: { background-color: #ff9142 !important; }
                     .bg-lightorange { background-color: #ffe9db !important; border-radius: 10px; }
-                    .bg-lightgrey { background-color: rgb(231, 231, 231) !important; border-radius: 10px; }
+                    .bg-lightgrey { background-color: rgb(242, 242, 242) !important; border-radius: 10px; }
                     
                     .border-orange { border: 2px solid #ff9142 !important }
+                    .border-lightorange { border: 2px solid #ffe9db !important }
                     .border-grey { border: 1px solid #545454 !important }
+                    .border-lightgrey { border: 2px solid rgb(218, 218, 218) !important }
 
                     h1 > span:nth-of-type(2) { color: #ff9142 !important; background-color: #ffe9db; border-radius: 15px;}
                     .badge { font-size: 1rem !important }
@@ -287,18 +298,44 @@ $template = @"
                         100% { transform: scale(1); }
                     }
                     .icon-pulse { display: inline-block; animation: pulse 2s infinite; }
+                    .rounded { border-radius: 15px !important; }
+                    button.active { color: #ff9142 !important }
+                    .accordion-button:not(.collapsed) { background-color: white !important; }
               </style>
-              <title>&#9889; Conditional Access Persona Report</title>
+              <title>&#128293; Maester Conditional Access Test Generator</title>
             </head>
             <body>
               <div class="container mt-5 mb-5">
                 <h1 class="mb-0 text-center font-bold color-primary"> 
-                    <span class="icon-pulse">&#9889;</span> Maester Conditional Access 
+                    <span class="icon-pulse">&#128293;</span> Maester Conditional Access 
                     <span class="font-bold color-white px-2 py-0 ">Test Generator</span>
                 </h1>
                 <p class="text-center mt-3 mb-2 color-secondary">Automatically generate Maester test for your Conditional Access policies</p>
 
-                <p class="text-center mt-3 mb-5 small text-secondary">$($datetime)</p>
+                <div class="d-flex justify-content-center mt-5">
+                    <div class="row w-75">
+                        <div class="col-4">
+                            <div class="px-3 pt-4 pb-3 bg-white rounded border-lightorange" style="line-height: 0.5;"> 
+                                <p class="font-bold my-0 fs-1 color-accent">$($conditionalAccessPolicies.count)<p>
+                                <p class="font-bold my-0 fs-6 color-lightgrey">Conditional Access policies</p>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="px-3 pt-4 pb-3 bg-white rounded border-lightorange" style="line-height: 0.5;">
+                                <p class="font-bold my-0 fs-1 color-accent">$($MaesterTests.count)<p>
+                                <p class="font-bold my-0 fs-6 color-lightgrey">generated Maester tests</p>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="px-3 pt-4 pb-3 bg-white rounded border-lightorange" style="line-height: 0.5;">
+                                <p class="font-bold my-0 fs-1 color-accent">$($minutes)<span class="fs-6">m</span>$($seconds)<span class="fs-6">s</span><p>
+                                <p class="font-bold my-0 fs-6 color-lightgrey">time to generate</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                               
+                <p class="text-center mt-3 mb-5 small text-secondary">Generated on $($datetime)</p>
 "@        
 
 # Show alert to update to new version
@@ -316,18 +353,150 @@ if ($UPTODATE -eq $false) {
 }
 
 $template += @"
-    <pre class="bg-lightgrey mt-3 px-5 py-0"><code>
-    $($templateMaester)
-    </code></pre>
+
+    <ul class="nav nav-tabs justify-content-center" id="myTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link color-secondary font-bold active" id="code-tab" data-bs-toggle="tab" data-bs-target="#code-tab-pane" type="button" role="tab" aria-controls="code-tab-pane" aria-selected="true">Maester tests (code)</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link color-secondary font-bold" id="table-tab" data-bs-toggle="tab" data-bs-target="#table-tab-pane" type="button" role="tab" aria-controls="table-tab-pane" aria-selected="false">Maester tests (table)</button>
+        </li>
+    </ul>
+
+
+    <div class="tab-content" id="myTabContent">
+
+      <div class="tab-pane fade show active" id="code-tab-pane" role="tabpanel" aria-labelledby="code-tab" tabindex="0">
+            <div class="position-relative">
+                <pre class="bg-lightgrey mt-3 px-5 py-0 border-lightgrey rounded">
+                    <code id="templateMaester">
+                        $($templateMaester)
+                    </code>
+                </pre>
+                <button class="btn btn-secondary position-absolute top-0 end-0 m-3 rounded" id="liveToastBtn">
+                    <i class="bi bi-copy"></i> Copy
+                </button>
+            </div>
+            
+            <div class="toast-container position-fixed bottom-0 end-0 p-3">
+                <div id="liveToast" class="toast text-bg-secondary" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="toast-body font-bold">$($MaesterTests.count) Maester tests copied to clipboard!</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade show active" id="table-tab-pane" role="tabpanel" aria-labelledby="table-tab" tabindex="0">
+            <div class="accordion" id="accordionExample">
+"@
+
+$index = 0
+foreach ($MaesterTest in $MaesterTests) { 
+    $template += @"
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button font-bold text-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse$index" aria-expanded="true" aria-controls="collapse$index">
+                    $($MaesterTest.testTitle)
+                </button>
+            </h2>
+            <div id="collapse$index" class="accordion-collapse collapse" data-bs-parent="#accordionExample">
+                <div class="accordion-body">
+                    <table class="table table-sm fs-6 text-secondary w-50">
+                        <tbody>
+                            <tr>
+                                <td>Conditional Access policy</td>
+                                <td>$($MaesterTest.CAPolicyName)</td>
+                            </tr>
+                            <tr>
+                                <td>Conditional Access policy ID</td>
+                                <td>$($MaesterTest.CAPolicyID)</td>
+                            </tr>
+                             <tr>
+                                <td>Expected control</td>
+                                <td>$($MaesterTest.expectedControl)</td>
+                            </tr>
+                             <tr>
+                                <td>User ID</td>
+                                <td>$($MaesterTest.userID)</td>
+                            </tr>
+                             <tr>
+                                <td>UPN</td>
+                                <td>$($MaesterTest.UPN)</td>
+                            </tr>
+                             <tr>
+                                <td>Application</td>
+                                <td>$($MaesterTest.appName)</td>
+                            </tr>
+                             <tr>
+                                <td>Application ID</td>
+                                <td>$($MaesterTest.appID)</td>
+                            </tr>
+                            
+                             <tr>
+                                <td>Client application</td>
+                                <td>$($MaesterTest.clientApp)</td>
+                            </tr>
+                             <tr>
+                                <td>IP range</td>
+                                <td>$($MaesterTest.IPRange)</td>
+                            </tr>
+                             <tr>
+                                <td>Device Platform</td>
+                                <td>$($MaesterTest.devicePlatform)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+"@
+$index++
+}
+
+
+$template += @"
+            </div>
+        </div> 
+    </div>
 "@
 
 $template += @"
-            <p class="text-center mt-5 mb-0"><a class="color-primary font-bold text-decoration-none" href="https://github.com/jasperbaes/Conditional-Access-Persona-Report" target="_blank">&#9889;Conditional Access Persona Report</a>, made by <a class="color-accent font-bold text-decoration-none" href="https://www.linkedin.com/in/jasper-baes" target="_blank">Jasper Baes</a></p>
-            <p class="text-center mt-1 mb-0 small"><a class="color-secondary" href="https://github.com/jasperbaes/Conditional-Access-Persona-Report" target="_blank">https://github.com/jasperbaes/Conditional-Access-Persona-Report</a></p>
+            <p class="text-center mt-5 mb-0"><a class="color-primary font-bold text-decoration-none" href="https://github.com/jasperbaes/Maester-Conditional-Access-Generator" target="_blank">&#128293;Maester Conditional Access Test Generator</a>, made by <a class="color-accent font-bold text-decoration-none" href="https://www.linkedin.com/in/jasper-baes" target="_blank">Jasper Baes</a></p>
+            <p class="text-center mt-1 mb-0 small"><a class="color-secondary" href="https://github.com/jasperbaes/Maester-Conditional-Access-Generator" target="_blank">https://github.com/jasperbaes/Maester-Conditional-Access-Generator</a></p>
             <p class="text-center mt-1 mb-5 small">This tool is part of the <a class="color-secondary font-bold" href="https://jbaes.be/Conditional-Access-Blueprint" target="_blank">Conditional Access Blueprint</a>. Any commercial or organizational profit-driven usage is strictly prohibited.</p>
-            
+"@                     
+
+$template += @"
             <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
             <script>
+                const toastTrigger = document.getElementById('liveToastBtn')
+                const toastLiveExample = document.getElementById('liveToast')
+
+                if (toastTrigger) {
+                    const toastBootstrap = bootstrap.Toast.getOrCreateInstance(toastLiveExample)
+                    toastTrigger.addEventListener('click', () => {
+                        // Get the content of the code element
+                        var codeContent = document.getElementById('templateMaester').textContent;
+
+                        // Create a temporary textarea element
+                        var tempTextarea = document.createElement('textarea');
+                        tempTextarea.value = codeContent;
+                        document.body.appendChild(tempTextarea);
+                        
+                        // Select the content of the textarea
+                        tempTextarea.select();
+                        tempTextarea.setSelectionRange(0, 99999);
+
+                        // Copy the selected content to the clipboard
+                        document.execCommand('copy');
+
+                        // Remove the temporary textarea element
+                        document.body.removeChild(tempTextarea);
+                    
+                        toastBootstrap.show()
+                    })
+                }
+
                 const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
                 const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
             </script>
@@ -335,7 +504,7 @@ $template += @"
     </html>
 "@
 
-$filename = "$((Get-Date -Format 'yyyyMMddHHmm'))-$($ORGANIZATIONNAME)-ConditionalAccessPersonaReport.html"
+$filename = "$((Get-Date -Format 'yyyyMMddHHmm'))-$($ORGANIZATIONNAME)-ConditionalAccessMaesterTests.html"
 $template | Out-File -FilePath $filename
 Start-Process $filename
 Write-OutputSuccess "Report available at: '$filename'`n"
