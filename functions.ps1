@@ -240,7 +240,6 @@ function Get-CAPApplications {
     }
 
     # todo: max 3
-    # todo: if 'All' --> max 3 randoms
 
     return $allApplications
 }

@@ -7,36 +7,31 @@
   <p align="center">
     By Jasper Baes
     <br />
-    <a href="https://github.com/jasperbaes/Conditional-Access-Persona-Report#%EF%B8%8F-installation">Installation</a>
+    <a href="https://github.com/jasperbaes/Maester-Conditional-Access-Test-Generator#%EF%B8%8F-installation">Installation</a>
     ·
-     <a href="https://github.com/jasperbaes/Conditional-Access-Persona-Report#-usage">Usage</a>
+     <a href="https://github.com/jasperbaes/Maester-Conditional-Access-Test-Generator#-usage">Usage</a>
     ·
-    <a href="https://github.com/jasperbaes/Conditional-Access-Persona-Report/issues">Report Bug</a>
+    <a href="https://github.com/jasperbaes/Maester-Conditional-Access-Test-Generator/issues">Report Bug</a>
     ·
      <a href="https://www.jbaes.be/CAB">Conditional Access Blueprint</a>
   </p>
 </p>
 
-The Conditional Access Persona Report is part of tool #3 in the <a href="https://www.jbaes.be/CAB">Conditional Access Blueprint</a>, a CA framework.
+The Maester Conditional Access Test Generator is part of tool #4 in the <a href="https://www.jbaes.be/CAB">Conditional Access Blueprint</a>, a CA framework.
 
 # 🚀 About
 
-The Conditional Access Persona Report is a PowerShell script that generates a HTML report of all included and excluded Personas of your Conditional Access Policies. This follows the persona-approach of the <a href="https://www.jbaes.be/CAB">Conditional Access Blueprint</a> where the goal is to use a static set Conditional Access policies and only add/remove personas (=Entra groups) as needed.
+The Maester Conditional Access Test Generator is a PowerShell tool that automatically generates Maester.dev test for Conditional access, based on your current Conditional Access setup.
 
 TODO: GIF van example report
-
-Features:
-- HTML report of CA Personas
-- 'Add' and 'Remove' buttons that can link to a MSSP support page so customers can request changes
-- Automatic generated Maester tests
 
 # 🛠️ Installation
 
 TODO: installation video
 
 ```powershell
-git clone https://github.com/jasperbaes/Conditional-Access-Persona-Report
-cd Conditional-Access-Persona-Report
+git clone https://github.com/jasperbaes/Maester-Conditional-Access-Test-Generator
+cd Maester-Conditional-Access-Test-Generator
 Install-Module Microsoft.Graph.Authentication
 ```
 
@@ -48,8 +43,6 @@ Authenticating can be done with the `Connect-MgGraph` command or with an App Reg
     "clientID": "",
     "clientSecret": "",
     "organizationName": "My Organization",
-    "removePersonaURL": "",
-    "addPersonaURL": ""
 }
 ```
 
@@ -59,14 +52,14 @@ Authenticating can be done with the `Connect-MgGraph` command or with an App Reg
 | clientID | Required field when authenticating with App Registration.|
 | clientSecret | Required field when authenticating with App Registration.|
 | organizationName | Required field.|
-| removePersonaURL | Optional field. If you provide this HTML report to customers as part of you MSSP service, `removePersonaURL` can be the link to your Jira, ServiceNow, Microsoft Forms, ... for customers to request a change. Or, you can fill in `mailto:jasper.baes@company.org` to redirect to an email. When `removePersonaURL` is empty, it automatically redirects to the Entra Portal. |
-| addPersonaURL | Optional field. If you provide this HTML report to customers as part of you MSSP service, `addPersonaURL` can link to your Jira, ServiceNow, Microsoft Forms, ... for customers to request a change. Or, you can fill in `mailto:jasper.baes@company.org` to redirect to an email. When `addPersonaURL` is empty, it automatically redirects to the Entra Portal.|
 
 # 💻 Usage
 
 ```powershell
 Connect-MgGraph
-.\Create-ConditionalAccessPersonaReport.ps1
+.\run.ps1
+
+.\run.ps1 -IncludeReportOnly
 ```
 
 TODO: usage video (timestamp)
@@ -75,7 +68,7 @@ TODO: usage video (timestamp)
 
 Jasper Baes (https://www.linkedin.com/in/jasper-baes)
 
-Discovered a bug or do you have an improvement? Create an <a href="https://github.com/jasperbaes/Conditional-Access-Persona-Report/issues">issue</a>.
+Discovered a bug or do you have an improvement? Create an <a href="https://github.com/jasperbaes/Maester-Conditional-Access-Test-Generator/issues">issue</a>.
 
 # 🆕 Release history
 
@@ -87,14 +80,10 @@ Release version numbers: YEAR.WEEK
 # 🤝 Contributors
 
 - Jasper Baes (https://www.linkedin.com/in/jasper-baes)
-- Robbe Van den Daele (https://www.linkedin.com/in/robbe-van-den-daele-677986190)
-- Thor Nicolaï (https://www.linkedin.com/in/thornicolai)
 
 # 📜 License
 
-Please be aware that the Conditional Access Persona Report code is allowed for use by organizations seeking financial gain, on 2 conditions:
-- this is communicated to me
-- the header and footer of the HTML report is unchanged. The name of your company can be added.
+Please be aware that this project is not allowed for use by organizations seeking financial gain. If interested, contact me. For all generated reports, the header and footer of the HTML report must be unchanged.
 
 Thank you for respecting these usage terms and contributing to a fair and ethical software community. 
 

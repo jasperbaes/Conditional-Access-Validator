@@ -1,15 +1,16 @@
-
 # - Dislaimer: this script generates simulations based on the current implemented CA policies, not your desired state. If there are misconfigurations in your CA policies, these are also reflected in the tests
-# + eerst object maken, dan testen uitschrijven (title, userID, UPN, conditions, actions)
-# + testen voor alle included en excluded users, bij groepen max 5 (random gekozen)
-# - een mooi overzichtje van alle testen in HTML (table)
-# - in HTML: de maester test code met 'view more' knop en met copy paste knop
-# - ook policies in reportOnly door een variabele te wijzigen
-# - laatste lijn "generated X Maester test in 23 seconds"
-# - X CA policies, Y simulations generated, Y time to complete
+# - TODO: test titels juist maken op basis van de test condities
+# - TODO: get organization name from MgContext
+# - TODO: user risk and sign-in risk
+# - TODO: device properties
 # Issue: Users can still be excluded in another persona
 
+param (
+    [switch]$IncludeReportOnly
+)
+
 $Global:CURRENTVERSION = "2025.18.1"
+
 $Global:LATESTVERSION = ""
 $Global:UPTODATE = $true 
 
@@ -20,9 +21,9 @@ $subScriptpath = [System.IO.Path]::Combine($PSScriptRoot, 'functions.ps1')
 # Start the timer
 $startTime = Get-Date
 
-Write-Host "`n ## Maester Conditional Access Generator ## " -NoNewline; Write-Host "v$CURRENTVERSION" -ForegroundColor DarkGray
+Write-Host "`n ## Maester Conditional Access Test Generator ## " -ForegroundColor Cyan -NoNewline; Write-Host "v$CURRENTVERSION" -ForegroundColor DarkGray
 Write-Host " Part of the Conditional Access Blueprint - https://jbaes.be/Conditional-Access-Blueprint" -ForegroundColor DarkGray
-Write-Host " Created by Jasper Baes - https://github.com/jasperbaes/Maester-Conditional-Access-Generator`n" -ForegroundColor DarkGray
+Write-Host " Created by Jasper Baes - https://github.com/jasperbaes/Maester-Conditional-Access-Test-Generator`n" -ForegroundColor DarkGray
 
 try {
     # Fetch latest version from GitHub
@@ -109,7 +110,13 @@ if ($conditionalAccessPolicies.count -gt 0) {
 
 # Filter enabled policies
 Write-OutputInfo "Filtering enabled Conditional Access policies"
-$conditionalAccessPolicies = $conditionalAccessPolicies | Where-Object { $_.state -eq 'enabled' }
+
+if ($IncludeReportOnly) {
+    $conditionalAccessPolicies = $conditionalAccessPolicies | Where-Object { $_.state -eq 'enabledForReportingButNotEnforced' -or  $_.state -eq 'enabled'}
+} else {
+    $conditionalAccessPolicies = $conditionalAccessPolicies | Where-Object { $_.state -eq 'enabled' }
+}
+
 Write-OutputSuccess "$($conditionalAccessPolicies.count) enabled Conditional Access policies detected"
 
 Write-OutputInfo "Generating Maester tests"
@@ -356,10 +363,10 @@ $template += @"
 
     <ul class="nav nav-tabs justify-content-center" id="myTab" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link color-secondary font-bold active" id="code-tab" data-bs-toggle="tab" data-bs-target="#code-tab-pane" type="button" role="tab" aria-controls="code-tab-pane" aria-selected="true">Maester tests (code)</button>
+            <button class="nav-link color-secondary font-bold active" id="code-tab" data-bs-toggle="tab" data-bs-target="#code-tab-pane" type="button" role="tab" aria-controls="code-tab-pane" aria-selected="true">Maester code</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link color-secondary font-bold" id="table-tab" data-bs-toggle="tab" data-bs-target="#table-tab-pane" type="button" role="tab" aria-controls="table-tab-pane" aria-selected="false">Maester tests (table)</button>
+            <button class="nav-link color-secondary font-bold" id="table-tab" data-bs-toggle="tab" data-bs-target="#table-tab-pane" type="button" role="tab" aria-controls="table-tab-pane" aria-selected="false">List</button>
         </li>
     </ul>
 
@@ -385,7 +392,7 @@ $template += @"
             </div>
         </div>
 
-        <div class="tab-pane fade show active" id="table-tab-pane" role="tabpanel" aria-labelledby="table-tab" tabindex="0">
+        <div class="tab-pane fade show" id="table-tab-pane" role="tabpanel" aria-labelledby="table-tab" tabindex="0">
             <div class="accordion" id="accordionExample">
 "@
 
@@ -396,12 +403,13 @@ foreach ($MaesterTest in $MaesterTests) {
             <h2 class="accordion-header">
                 <button class="accordion-button font-bold text-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse$index" aria-expanded="true" aria-controls="collapse$index">
                     $($MaesterTest.testTitle)
+                    <span class="badge rounded-pill bg-lightorange color-accent border-orange position-absolute end-0 me-5">$($MaesterTest.expectedControl)</span>
                 </button>
             </h2>
             <div id="collapse$index" class="accordion-collapse collapse" data-bs-parent="#accordionExample">
                 <div class="accordion-body">
-                    <table class="table table-sm fs-6 text-secondary w-50">
-                        <tbody>
+                    <table class="table table-responsive table-sm fs-6 text-secondary">
+                        <tbody class="text-secondary">
                             <tr>
                                 <td>Conditional Access policy</td>
                                 <td>$($MaesterTest.CAPolicyName)</td>
@@ -461,8 +469,8 @@ $template += @"
 "@
 
 $template += @"
-            <p class="text-center mt-5 mb-0"><a class="color-primary font-bold text-decoration-none" href="https://github.com/jasperbaes/Maester-Conditional-Access-Generator" target="_blank">&#128293;Maester Conditional Access Test Generator</a>, made by <a class="color-accent font-bold text-decoration-none" href="https://www.linkedin.com/in/jasper-baes" target="_blank">Jasper Baes</a></p>
-            <p class="text-center mt-1 mb-0 small"><a class="color-secondary" href="https://github.com/jasperbaes/Maester-Conditional-Access-Generator" target="_blank">https://github.com/jasperbaes/Maester-Conditional-Access-Generator</a></p>
+            <p class="text-center mt-5 mb-0"><a class="color-primary font-bold text-decoration-none" href="https://github.com/jasperbaes/Maester-Conditional-Access-Test-Generator" target="_blank">&#128293;Maester Conditional Access Test Generator</a>, made by <a class="color-accent font-bold text-decoration-none" href="https://www.linkedin.com/in/jasper-baes" target="_blank">Jasper Baes</a></p>
+            <p class="text-center mt-1 mb-0 small"><a class="color-secondary" href="https://github.com/jasperbaes/Maester-Conditional-Access-Test-Generator" target="_blank">https://github.com/jasperbaes/Maester-Conditional-Access-Test-Generator</a></p>
             <p class="text-center mt-1 mb-5 small">This tool is part of the <a class="color-secondary font-bold" href="https://jbaes.be/Conditional-Access-Blueprint" target="_blank">Conditional Access Blueprint</a>. Any commercial or organizational profit-driven usage is strictly prohibited.</p>
 "@                     
 
