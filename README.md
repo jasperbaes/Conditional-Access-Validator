@@ -77,7 +77,7 @@ Release version numbers: YEAR.WEEK
 - Add device properties
 - Add other access controls
 - Add session controls
-- Create tree
+- Create tree: weglaten van een property als die 'All' is.
 
 
 Decision tree:

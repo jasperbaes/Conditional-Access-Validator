@@ -294,19 +294,48 @@ foreach ($UPN in $uniqueUPNs) {
             $arr2 = @()
 
             # Get all tests of this UPN, app and clientApp
-            $testsOfThisUPNAndAppAndClientApp = $MaesterTests | Where-Object { $_.UPN -eq $UPN -and $_.appName -eq $test1.appName -and $_.clientApp -eq $test2.clientApp}
+            $testsOfThisUPNAndAppAndClientApp = $MaesterTests | Where-Object { $_.UPN -eq $UPN -and $_.appName -eq $test2.appName -and $_.clientApp -eq $test2.clientApp}
 
             # Get unique device platforms
             $uniqueTestsByDevicePlatform = $testsOfThisUPNAndAppAndClientApp | Sort-Object devicePlatform -Unique
 
             foreach ($test3 in $uniqueTestsByDevicePlatform) {
-                $arr2 += @{
-                    $test3.devicePlatform = @($test3.expectedControl)
+
+                # 
+                $arr3 = @()
+
+                # Get all tests of this UPN, app, clientApp and OS platform
+                $testsOfThisUPNAndAppAndClientAppAndPlatform = $MaesterTests | Where-Object { $_.UPN -eq $UPN -and $_.appName -eq $test3.appName -and $_.clientApp -eq $test3.clientApp -and $_.IPRange -eq $test3.IPRange}
+    
+                # Get unique device platforms
+                $uniqueTestsByIPRange = $testsOfThisUPNAndAppAndClientAppAndPlatform | Sort-Object IPRange -Unique
+
+                foreach ($test4 in $uniqueTestsByIPRange) {
+                    $finalAction = ($test4.inverted) ? @("no $($test4.expectedControl) ($($test4.CAPolicyName))") : @("$($test4.expectedControl) ($($test4.CAPolicyName))") # include 'not' if the test is inverted
+                    
+                    if ($test4.IPRange -eq 'All') {
+                        $arr3 += $finalAction
+                    } else {
+                        $arr3 += @{
+                            "IP: $($test4.IPRange)" = $finalAction
+                        } 
+                    }  
+                }
+                # 
+
+                # $finalAction = ($test3.inverted) ? @("no $($test3.expectedControl) ($($test3.CAPolicyName))") : @("$($test3.expectedControl) ($($test3.CAPolicyName))") # include 'not' if the test is inverted
+
+                if ($test3.devicePlatform -eq 'All') {
+                    $arr2 += $arr2
+                } else {
+                    $arr2 += @{
+                        "OS: $($test3.devicePlatform)" = $arr3
+                    }
                 }
             }
 
             $arr1 += @{
-                $test2.clientApp = $arr2
+                "$($test2.clientApp) auth" += $arr2
             }
         }
 
@@ -564,7 +593,15 @@ foreach ($MaesterTest in $MaesterTests) {
                             </tr>
                              <tr>
                                 <td>Expected control</td>
-                                <td>$($MaesterTest.expectedControl)</td>
+"@
+
+                            if ($MaesterTest.inverted) { 
+                                $template += "<td>no $($MaesterTest.expectedControl)</td>"
+                            } else {
+                                $template += "<td>$($MaesterTest.expectedControl)</td>"
+                            }
+
+$template += @"
                             </tr>
                              <tr>
                                 <td>User ID</td>
