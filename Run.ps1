@@ -62,7 +62,7 @@ if([string]::IsNullOrEmpty($mgContext)) { # if a MgGraph session does not exist 
     # Check if App credentials are set in settings.json
     if ([string]::IsNullOrWhiteSpace($Global:TENANTID) -or [string]::IsNullOrWhiteSpace($Global:CLIENTID) -or [string]::IsNullOrWhiteSpace($Global:CLIENTSECRET)) {
         Write-OutputError "Failed to connect to Microsoft Graph"
-        Write-OutputError "Please login with 'Connect-MgGraph' command, or set the correct tenantID, clientID and clientSecret in settings.json and try again."
+        Write-OutputError "Please login with 'Connect-MgGraph' command, or set the tenantID, clientID and clientSecret in settings.json and try again."
     } else { # if app credentials are set in settings.json, then try to sign-in
         Write-OutputInfo "Connecting to the Microsoft Graph with application"
 
@@ -93,12 +93,12 @@ $Global:ORGANIZATIONNAME = (Get-MgOrganization).DisplayName
 # Fetch Conditional Access policies
 Write-OutputInfo "Fetching Conditional Access policies"
 $conditionalAccessPolicies = Invoke-MgGraphRequest -Method GET 'https://graph.microsoft.com/v1.0/policies/conditionalAccessPolicies'
-$conditionalAccessPolicies = $conditionalAccessPolicies | Select id, displayName, state, conditions, grantControls
+$conditionalAccessPolicies = $conditionalAccessPolicies.value | Select id, displayName, state, conditions, grantControls
 
 if ($conditionalAccessPolicies.count -gt 0) {
     Write-OutputSuccess "$($conditionalAccessPolicies.count) Conditional Access policies detected"
 } else {
-    Write-OutputError "0 Conditional Access policies detected. Verify the credentials in settings.json are correct, the Service Principal has the correct permissions, and the tenant has Conditional Access policies in place. Exiting script."
+    Write-OutputError "0 Conditional Access policies detected. Verify the credentials in settings.json are correct, the Service Principal has the correct permissions, your user has the correct permissions or the tenant has Conditional Access policies in place. Exiting script."
     Exit
 }
 
@@ -131,6 +131,12 @@ foreach ($conditionalAccessPolicy in $conditionalAccessPolicies) {
         # Write-Output $user.UPN
         foreach ($app in $allApplications) { # loop over all applications used in tests
             # Write-Output "   $($app.applicationName)"
+
+            # if all client apps are selected, then assign the common 3 client apps
+            if ($conditionalAccessPolicy.conditions.clientAppTypes -eq "all") {
+                $conditionalAccessPolicy.conditions.clientAppTypes = @("browser", "mobileAppsAndDesktopClients", "other")
+            }
+
             foreach ($clientApp in $conditionalAccessPolicy.conditions.clientAppTypes) { # loop over all clientApps of the policy
                 # Write-Output "   $($clientApp)"
                 
@@ -138,6 +144,9 @@ foreach ($conditionalAccessPolicy in $conditionalAccessPolicies) {
                 [array]$allIPRanges = Get-IPRanges $conditionalAccessPolicy.conditions.locations.includeLocations $conditionalAccessPolicy.conditions.locations.excludeLocations
                                 
                 foreach ($ipRange in $allIPRanges) { # loop over IP ranges
+                    # Transform the IP range to an IP address
+                    $ipRange.IPrange = $ipRange.IPrange.Split("/")[0]
+
                     # Get all device platforms
                     [array]$alldevicePlatforms = Get-devicePlatforms $conditionalAccessPolicy.conditions.platforms.includePlatforms $conditionalAccessPolicy.conditions.platforms.excludePlatforms                    
 
@@ -154,31 +163,31 @@ foreach ($conditionalAccessPolicy in $conditionalAccessPolicies) {
                         
                         if ($conditionalAccessPolicy.grantControls.builtInControls -contains "block") {
                             $testName = if ($invertedTest) { "$($user.UPN) should not be blocked for application $($app.applicationName)" } else { "$($user.UPN) should be blocked for application $($app.applicationName)" }
-                            $MaesterTests += Generate-MaesterTest $invertedTest 'block' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $conditionalAccessPolicy.conditions.clientAppTypes $ipRange.IPrange $devicePlatform.OS
+                            $MaesterTests += Generate-MaesterTest $invertedTest 'block' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS
                             $testsCreatedForThisCAPolicy++
                         }
 
                         if ($conditionalAccessPolicy.grantControls.builtInControls -contains "mfa") { # TODO: I think that if the action is 'passwordChange', then 'mfa' is also given as an action. To check. And to check if me must leave this out then...
                             $testName = if ($invertedTest) { "$($user.UPN) should not have MFA for application $($app.applicationName)" } else { "$($user.UPN) should have MFA for application $($app.applicationName)" }
-                            $MaesterTests += Generate-MaesterTest $invertedTest 'mfa' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $conditionalAccessPolicy.conditions.clientAppTypes $ipRange.IPrange $devicePlatform.OS
+                            $MaesterTests += Generate-MaesterTest $invertedTest 'mfa' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS
                             $testsCreatedForThisCAPolicy++
                         }
 
                         if ($conditionalAccessPolicy.grantControls.builtInControls -contains "passwordChange") { 
                             $testName = if ($invertedTest) { "$($user.UPN) should not have a password reset for application $($app.applicationName)" } else { "$($user.UPN) should have a password reset for application $($app.applicationName)" }
-                            $MaesterTests += Generate-MaesterTest $invertedTest 'passwordChange' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $conditionalAccessPolicy.conditions.clientAppTypes $ipRange.IPrange $devicePlatform.OS
+                            $MaesterTests += Generate-MaesterTest $invertedTest 'passwordChange' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS
                             $testsCreatedForThisCAPolicy++
                         }
 
                         if ($conditionalAccessPolicy.grantControls.builtInControls -contains "compliantDevice") {
                             $testName = if ($invertedTest) { "$($user.UPN) should not have a compliant device for application $($app.applicationName)" } else { "$($user.UPN) should have a compliant device for application $($app.applicationName)" }
-                            $MaesterTests += Generate-MaesterTest $invertedTest 'compliantDevice' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $conditionalAccessPolicy.conditions.clientAppTypes $ipRange.IPrange $devicePlatform.OS
+                            $MaesterTests += Generate-MaesterTest $invertedTest 'compliantDevice' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS
                             $testsCreatedForThisCAPolicy++
                         }
 
                         if ($conditionalAccessPolicy.grantControls.builtInControls -contains "domainJoinedDevice") {
                             $testName = if ($invertedTest) { "$($user.UPN) should not have a domain joined device for application $($app.applicationName)" } else { "$($user.UPN) should have a domain joined device for application $($app.applicationName)" }
-                            $MaesterTests += Generate-MaesterTest $invertedTest 'domainJoinedDevice' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $conditionalAccessPolicy.conditions.clientAppTypes $ipRange.IPrange $devicePlatform.OS
+                            $MaesterTests += Generate-MaesterTest $invertedTest 'domainJoinedDevice' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS
                             $testsCreatedForThisCAPolicy++
                         }
                     }
@@ -215,7 +224,7 @@ foreach ($MaesterTest in $MaesterTests) {
     }
 
     if ($MaesterTest.IPRange -and $MaesterTest.IPRange -ne "All") {
-        $templateMaester += "-Country FR -IpAddress `'$($MaesterTest.IPRange)`' "
+        $templateMaester += "-Country 'FR' -IpAddress `'$($MaesterTest.IPRange)`' "
     }
 
     if ($MaesterTest.devicePlatform -and $MaesterTest.devicePlatform -ne "All") {
