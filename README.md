@@ -77,8 +77,35 @@ Release version numbers: YEAR.WEEK
 - Add device properties
 - Add other access controls
 - Add session controls
-- Add export to xxxx.Tests.ps1
 - Create tree
+
+
+Decision tree:
+```
+{
+  "andreas.lauwers_thecollective.eu#EXT#@thecollectiveonlinetest.onmicrosoft.com": [
+    {
+      "Office 365 Exchange Online": [
+        {
+          "other": [
+            "block"
+          ]
+        }
+      ]
+    },
+    {
+      "Office 365 SharePoint Online": [
+        {
+          "other": [ "mfa" ]
+        },
+        {
+          "browser": [ "mfa" ]
+        }
+      ]
+    }
+  ]
+}
+```
 
 # 📜 License
 

@@ -152,43 +152,53 @@ foreach ($conditionalAccessPolicy in $conditionalAccessPolicies) {
 
                     foreach ($devicePlatform in $alldevicePlatforms) { # loop over IP ranges
 
-                        # - TODO: SignInRiskLevel 
-                        # - TODO: UserRiskLevel
-                        # - TODO: Authenticationflow
-                        # - TODO: DeviceProperties
-                        # - TODO: InsiderRisk
-
-                        # if user or app or IP range is excluded, we invert the test to a -Not
-                        $invertedTest = $user.type -eq "excluded" -or $app.type -eq "excluded" -or $ipRange.type -eq "excluded" -or $devicePlatform.type -eq "excluded"
+                        [array]$allUserRisks = $conditionalAccessPolicy.conditions.userRiskLevels
                         
-                        if ($conditionalAccessPolicy.grantControls.builtInControls -contains "block") {
-                            $testName = if ($invertedTest) { "$($user.UPN) should not be blocked for application $($app.applicationName)" } else { "$($user.UPN) should be blocked for application $($app.applicationName)" }
-                            $MaesterTests += Generate-MaesterTest $invertedTest 'block' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS
-                            $testsCreatedForThisCAPolicy++
-                        }
+                        # if no user risk levels are set, then set 'all'. This will not be printed in the test itself
+                        if (-Not $conditionalAccessPolicy.conditions.userRiskLevels) {
+                            $conditionalAccessPolicy.conditions.userRiskLevels = @('All')
+                        } 
 
-                        if ($conditionalAccessPolicy.grantControls.builtInControls -contains "mfa") { # TODO: I think that if the action is 'passwordChange', then 'mfa' is also given as an action. To check. And to check if me must leave this out then...
-                            $testName = if ($invertedTest) { "$($user.UPN) should not have MFA for application $($app.applicationName)" } else { "$($user.UPN) should have MFA for application $($app.applicationName)" }
-                            $MaesterTests += Generate-MaesterTest $invertedTest 'mfa' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS
-                            $testsCreatedForThisCAPolicy++
-                        }
+                        foreach ($userRisk in $conditionalAccessPolicy.conditions.userRiskLevels) { # loop over user risks
 
-                        if ($conditionalAccessPolicy.grantControls.builtInControls -contains "passwordChange") { 
-                            $testName = if ($invertedTest) { "$($user.UPN) should not have a password reset for application $($app.applicationName)" } else { "$($user.UPN) should have a password reset for application $($app.applicationName)" }
-                            $MaesterTests += Generate-MaesterTest $invertedTest 'passwordChange' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS
-                            $testsCreatedForThisCAPolicy++
-                        }
+                            # - TODO: SignInRiskLevel 
+                            # - TODO: UserRiskLevel
+                            # - TODO: Authenticationflow
+                            # - TODO: DeviceProperties
+                            # - TODO: InsiderRisk
 
-                        if ($conditionalAccessPolicy.grantControls.builtInControls -contains "compliantDevice") {
-                            $testName = if ($invertedTest) { "$($user.UPN) should not have a compliant device for application $($app.applicationName)" } else { "$($user.UPN) should have a compliant device for application $($app.applicationName)" }
-                            $MaesterTests += Generate-MaesterTest $invertedTest 'compliantDevice' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS
-                            $testsCreatedForThisCAPolicy++
-                        }
+                            # if user or app or IP range is excluded, we invert the test to a -Not
+                            $invertedTest = $user.type -eq "excluded" -or $app.type -eq "excluded" -or $ipRange.type -eq "excluded" -or $devicePlatform.type -eq "excluded"
+                            
+                            if ($conditionalAccessPolicy.grantControls.builtInControls -contains "block") {
+                                $testName = if ($invertedTest) { "$($user.UPN) should not be blocked for application $($app.applicationName)" } else { "$($user.UPN) should be blocked for application $($app.applicationName)" }
+                                $MaesterTests += Generate-MaesterTest $invertedTest 'block' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk
+                                $testsCreatedForThisCAPolicy++
+                            }
 
-                        if ($conditionalAccessPolicy.grantControls.builtInControls -contains "domainJoinedDevice") {
-                            $testName = if ($invertedTest) { "$($user.UPN) should not have a domain joined device for application $($app.applicationName)" } else { "$($user.UPN) should have a domain joined device for application $($app.applicationName)" }
-                            $MaesterTests += Generate-MaesterTest $invertedTest 'domainJoinedDevice' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS
-                            $testsCreatedForThisCAPolicy++
+                            if ($conditionalAccessPolicy.grantControls.builtInControls -contains "mfa") { # TODO: I think that if the action is 'passwordChange', then 'mfa' is also given as an action. To check. And to check if me must leave this out then...
+                                $testName = if ($invertedTest) { "$($user.UPN) should not have MFA for application $($app.applicationName)" } else { "$($user.UPN) should have MFA for application $($app.applicationName)" }
+                                $MaesterTests += Generate-MaesterTest $invertedTest 'mfa' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk
+                                $testsCreatedForThisCAPolicy++
+                            }
+
+                            if ($conditionalAccessPolicy.grantControls.builtInControls -contains "passwordChange") { 
+                                $testName = if ($invertedTest) { "$($user.UPN) should not have a password reset for application $($app.applicationName)" } else { "$($user.UPN) should have a password reset for application $($app.applicationName)" }
+                                $MaesterTests += Generate-MaesterTest $invertedTest 'passwordChange' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk
+                                $testsCreatedForThisCAPolicy++
+                            }
+
+                            if ($conditionalAccessPolicy.grantControls.builtInControls -contains "compliantDevice") {
+                                $testName = if ($invertedTest) { "$($user.UPN) should not have a compliant device for application $($app.applicationName)" } else { "$($user.UPN) should have a compliant device for application $($app.applicationName)" }
+                                $MaesterTests += Generate-MaesterTest $invertedTest 'compliantDevice' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk
+                                $testsCreatedForThisCAPolicy++
+                            }
+
+                            if ($conditionalAccessPolicy.grantControls.builtInControls -contains "domainJoinedDevice") {
+                                $testName = if ($invertedTest) { "$($user.UPN) should not have a domain joined device for application $($app.applicationName)" } else { "$($user.UPN) should have a domain joined device for application $($app.applicationName)" }
+                                $MaesterTests += Generate-MaesterTest $invertedTest 'domainJoinedDevice' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk
+                                $testsCreatedForThisCAPolicy++
+                            }
                         }
                     }
                 }
@@ -197,10 +207,11 @@ foreach ($conditionalAccessPolicy in $conditionalAccessPolicies) {
     }
 
     Write-OutputSuccess "$testsCreatedForThisCAPolicy tests generated for '$($conditionalAccessPolicy.displayName)' ($($conditionalAccessPolicy.id))"
+    # break
 }
 
 Write-OutputSuccess "Generated $($MaesterTests.count) Maester tests"
-# Write-Output $MaesterTests
+# Write-Output $MaesterTests | ConvertTo-JSON
 
 ##########################
 # MAESTER TEST GENERATOR #
@@ -231,6 +242,10 @@ foreach ($MaesterTest in $MaesterTests) {
         $templateMaester += "-DevicePlatform `'$($MaesterTest.devicePlatform)`' "
     }
 
+    if ($MaesterTest.userRisk -and $MaesterTest.userRisk -ne "All") { # the first letter must be uppercase (e.g.: 'Low', 'Medium', 'High')
+        $templateMaester += "-UserRiskLevel `'$($MaesterTest.userRisk.Substring(0,1).ToUpper() + $MaesterTest.userRisk.Substring(1))`' "
+    }
+
     $templateMaester += "`n"
 
     if ($MaesterTest.inverted -eq $true) {
@@ -246,6 +261,74 @@ $templateMaester += "}"
 # $templateMaester # Uncomment for debugging purposes
 
 Write-OutputSuccess "Translated to the Maester test layout"
+
+##############
+# JSON CRACK #
+##############
+
+$CAJSON = @{} # create empty object
+
+# Get unique UPNs
+$uniqueUPNs = $MaesterTests | Select-Object -ExpandProperty UPN -Unique
+
+
+foreach ($UPN in $uniqueUPNs) {
+    $arr = @()
+
+    # Get all tests of this UPN
+    $testsOfThisUPN = $MaesterTests | Where-Object { $_.UPN -eq $UPN}
+    Write-Host $testsOfThisUPN.count
+
+    # Get unique appNames
+    $uniqueTestsByApp = $testsOfThisUPN | Sort-Object appName -Unique
+
+    foreach ($test1 in $uniqueTestsByApp) {
+        $arr1 = @()
+
+        # Get all tests of this UPN and app
+        $testsOfThisUPNAndApp = $MaesterTests | Where-Object { $_.UPN -eq $UPN -and $_.appName -eq $test1.appName}
+
+        # Get unique appNames
+        $uniqueTestsByClientApp = $testsOfThisUPN | Sort-Object clientApp -Unique
+
+        foreach ($test2 in $uniqueTestsByClientApp) {
+            $arr2 = @()
+
+            # Get all tests of this UPN, app and clientApp
+            $testsOfThisUPNAndAppAndClientApp = $MaesterTests | Where-Object { $_.UPN -eq $UPN -and $_.appName -eq $test1.appName -and $_.clientApp -eq $test2.clientApp}
+
+            # Get unique device platforms
+            $uniqueTestsByDevicePlatform = $testsOfThisUPNAndAppAndClientApp | Sort-Object devicePlatform -Unique
+
+            foreach ($test3 in $uniqueTestsByDevicePlatform) {
+                $arr2 += @{
+                    $test3.devicePlatform = @($test3.expectedControl)
+                }
+            }
+
+            $arr1 += @{
+                $test2.clientApp = $arr2
+            }
+        }
+
+        $arr += @{
+            $test1.appName = $arr1
+        }
+
+    }
+
+    $CAJSON[$UPN] = $arr
+}
+    
+$CAJSON | ConvertTo-Json -Depth 99
+
+##############
+# JSON CRACK #
+##############
+
+
+
+
 $endTime = Get-Date # end script timer
 
 $elapsedTime = $endTime - $startTime
@@ -435,9 +518,14 @@ $template += @"
                         $($templateMaester)
                     </code>
                 </pre>
-                <button class="btn btn-secondary position-absolute top-0 end-0 m-3 rounded" id="liveToastBtn">
-                    <i class="bi bi-copy"></i> Copy
-                </button>
+                <div class="row position-absolute top-0 end-0 m-3"> 
+                    <button class="btn btn-secondary col me-2 rounded" id="liveToastBtn" data-bs-toggle="tooltip" data-bs-title="Click to copy to clipboard">
+                        <i class="bi bi-copy"></i>
+                    </button>
+                    <button class="btn btn-secondary col rounded" id="liveToastBtnDownload" data-bs-toggle="tooltip" data-bs-title="Click to download">
+                        <i class="bi bi-download"></i>
+                    </button>
+                </div>
             </div>
             
             <div class="toast-container position-fixed bottom-0 end-0 p-3">
@@ -560,6 +648,29 @@ $template += @"
                     })
                 }
 
+                const downloadTrigger = document.getElementById('liveToastBtnDownload');
+
+                if (downloadTrigger) {
+                    downloadTrigger.addEventListener('click', () => {
+                        // Get the content of the code element
+                        var codeContent = document.getElementById('templateMaester').textContent;
+
+                        // Create a Blob with the code content
+                        var blob = new Blob([codeContent], { type: 'text/plain' });
+
+                        // Create a temporary anchor element
+                        var downloadLink = document.createElement('a');
+                        downloadLink.href = URL.createObjectURL(blob);
+                        downloadLink.download = 'CA.Tests.ps1';
+
+                        // Append the anchor, trigger the download, then remove it
+                        document.body.appendChild(downloadLink);
+                        downloadLink.click();
+                        document.body.removeChild(downloadLink);
+                    });
+                }
+
+
                 const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
                 const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
             </script>
@@ -569,5 +680,5 @@ $template += @"
 
 $filename = "$((Get-Date -Format 'yyyyMMddHHmm'))-$($ORGANIZATIONNAME)-ConditionalAccessMaesterTests.html"
 $template | Out-File -FilePath $filename
-Start-Process $filename
+# Start-Process $filename
 Write-OutputSuccess "Report available at: '$filename'`n"

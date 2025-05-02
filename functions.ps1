@@ -257,7 +257,8 @@ function Generate-MaesterTest {
         $appName,
         $clientApp,
         $IPRange,
-        $devicePlatform
+        $devicePlatform,
+        $userRisk
     )
 
     return New-Object PSObject -Property @{
@@ -273,6 +274,7 @@ function Generate-MaesterTest {
         clientApp = $clientApp
         IPRange = $IPRange
         devicePlatform = $devicePlatform
+        userRisk = $userRisk
     }
 }
 
