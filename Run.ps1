@@ -1,12 +1,3 @@
-# - Dislaimer: this script generates simulations based on the current implemented CA policies, not your desired state. If there are misconfigurations in your CA policies, these are also reflected in the tests
-# - TODO: test titels juist maken op basis van de test condities
-# - TODO: get organization name from MgContext
-# - TODO: user risk and sign-in risk
-# - TODO: device properties
-# - TODO: add other access controls
-# - TODO: add all session controls
-# Issue: Users can still be excluded in another persona
-
 param (
     [switch]$IncludeReportOnly
 )
@@ -51,7 +42,6 @@ $jsonContent = Get-Content -Path "settings.json" -Raw | ConvertFrom-Json
 $Global:TENANTID = $jsonContent.tenantID
 $Global:CLIENTID = $jsonContent.clientID
 $Global:CLIENTSECRET = $jsonContent.clientSecret
-$Global:ORGANIZATIONNAME = $jsonContent.organizationName
 
 # Check if Microsoft.Graph.Authentication module is installed
 if (-not (Get-Module -ListAvailable -Name Microsoft.Graph.Authentication)) {
@@ -63,46 +53,46 @@ if (-not (Get-Module -ListAvailable -Name Microsoft.Graph.Authentication)) {
 # Connect to Microsoft Graph
 Write-OutputInfo "Connecting to Microsoft Graph"
 
+# Get current MgGraph session from the terminal
 $mgContext = Get-MgContext
 
-if($mgContext) { # if already logged-in in the terminal
-    Write-OutputSuccess "Connected to the Microsoft Graph with $((Get-MgContext).Account)"
-} else {
-    $clientSecret = ConvertTo-SecureString -AsPlainText $CLIENTSECRET -Force
-    [pscredential]$clientSecretCredential = New-Object System.Management.Automation.PSCredential($CLIENTID, $clientSecret)
-    Write-OutputInfo "No active MgGraph session detected. Connecting to Microsoft Graph with App Registration."
+if([string]::IsNullOrEmpty($mgContext)) { # if a MgGraph session does not exist yet in the terminal
+    Write-OutputInfo "No active MgGraph session detected. Checking your options..."
 
-    # Check if TENANTID is empty
-    if ([string]::IsNullOrWhiteSpace($Global:TENANTID)) {
-        Write-OutputError "Error: TENANTID is empty. Please set the TenantID variable in settings.json. Exiting script."
-        exit 1
-    }
-
-    # Check if CLIENTID is empty
-    if ([string]::IsNullOrWhiteSpace($Global:CLIENTID)) {
-        Write-OutputError "Error: CLIENTID is empty. Please set the clientID variable in settings.json. Exiting script."
-        exit 1
-    }
-
-    # Check if CLIENTSECRET is empty
-    if ([string]::IsNullOrWhiteSpace($Global:CLIENTSECRET)) {
-        Write-OutputError "Error: CLIENTSECRET is empty. Please set the clientSecret variable in settings.json. Exiting script."
-        exit 1
-    }
-
-    try { # Connect with App Registration
-        Connect-MgGraph -TenantId $TENANTID -ClientSecretCredential $clientSecretCredential -NoWelcome -ErrorAction Stop
-        Write-OutputSuccess "Connected to the Microsoft Graph"
-    } catch {
-        Write-OutputError "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
+    # Check if App credentials are set in settings.json
+    if ([string]::IsNullOrWhiteSpace($Global:TENANTID) -or [string]::IsNullOrWhiteSpace($Global:CLIENTID) -or [string]::IsNullOrWhiteSpace($Global:CLIENTSECRET)) {
+        Write-OutputError "Failed to connect to Microsoft Graph"
         Write-OutputError "Please login with 'Connect-MgGraph' command, or set the correct tenantID, clientID and clientSecret in settings.json and try again."
-        Exit
+    } else { # if app credentials are set in settings.json, then try to sign-in
+        Write-OutputInfo "Connecting to the Microsoft Graph with application"
+
+        $clientSecret = ConvertTo-SecureString -AsPlainText $CLIENTSECRET -Force
+        [pscredential]$clientSecretCredential = New-Object System.Management.Automation.PSCredential($CLIENTID, $clientSecret)
+
+        try { # Connect with App Registration
+            Connect-MgGraph -TenantId $TENANTID -ClientSecretCredential $clientSecretCredential -NoWelcome -ErrorAction Stop
+            $mgContext = Get-MgContext
+            Write-OutputSuccess "Connected to the Microsoft Graph with Service Principal $($mgContext.AppName)"
+        } catch {
+            Write-OutputError "Failed to connect to Microsoft Graph: $($_.Exception.Message)"
+            Write-OutputError "Please login with 'Connect-MgGraph' command, or set the correct tenantID, clientID and clientSecret in settings.json and try again."
+            Exit
+        }
     }
+} else { # if a MgGraph session already exists
+    if (-not [string]::IsNullOrEmpty($mgContext.Account)) {
+        Write-OutputSuccess "Connected to the Microsoft Graph with account $($mgContext.Account)"
+    } elseif (-not [string]::IsNullOrEmpty($mgContext.AppName)) {
+        Write-OutputSuccess "Connected to the Microsoft Graph with Service Principal $($mgContext.AppName)"
+    }     
 }
+
+# Set organization tenant name
+$Global:ORGANIZATIONNAME = (Get-MgOrganization).DisplayName
 
 # Fetch Conditional Access policies
 Write-OutputInfo "Fetching Conditional Access policies"
-$conditionalAccessPolicies = Invoke-MtGraphRequest -RelativeUri "policies/conditionalAccessPolicies"
+$conditionalAccessPolicies = Invoke-MgGraphRequest -Method GET 'https://graph.microsoft.com/v1.0/policies/conditionalAccessPolicies'
 $conditionalAccessPolicies = $conditionalAccessPolicies | Select id, displayName, state, conditions, grantControls
 
 if ($conditionalAccessPolicies.count -gt 0) {
@@ -330,7 +320,7 @@ $template = @"
                     <span class="font-bold color-white px-2 py-0 ">Test Generator</span>
                 </h1>
                 <p class="text-center mt-3 mb-2 color-secondary">Automatically generate Maester test for your Conditional Access policies</p>
-                <i class="bi bi-question-circle position-absolute pointer" style="top: 10px; right: 10px;" data-bs-toggle="modal" data-bs-target="#infoModal"></i>
+                <i class="bi bi-question-circle position-absolute pointer color-secondary" style="top: 10px; right: 10px;" data-bs-toggle="modal" data-bs-target="#infoModal"></i>
 
                 <div class="modal fade" id="infoModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
                     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
@@ -356,11 +346,11 @@ $template = @"
                                 <p>Here's how you can contribute to our mission:</p>
 
                                 <ul>
-                                    <li class="text-accent font-bold mb-0 mt-2">Use it: <span class="">Use the tool and other referenced tools of the <a class="color-secondary font-bold" href="https://jbaes.be/Conditional-Access-Blueprint" target="_blank">Conditional Access Blueprint</a>! That's why they were build.</span></li>
-                                    <li class="text-accent font-bold mb-0 mt-2">Talk about it: <span class="">Engage in discussions about this, or invite me to spreak about the tool.</span></li>
-                                    <li class="text-accent font-bold mb-0 mt-2">Feedback or share ideas: <span class="">Have ideas or suggestions to improve this tool? Message me on <a class="font-bold" href="https://www.linkedin.com/in/jasper-baes" target="_blank">LinkedIn</a> (Jasper Baes)</span></li>
-                                    <li class="text-accent font-bold mb-0 mt-2">Contribute: <span class="">Join efforts to improve the quality, code and usability of this tool.</span></li>
-                                    <li class="text-accent font-bold mb-0 mt-2">Donate: <span class="">Consider supporting financially to cover costs (domain name, hosting, development costs, time, production costs, professional travel, ...) or future investments: donate on</span>
+                                    <li class="color-accent font-bold mb-0 mt-2">Use it: <span class="text-dark">Use the tool and other referenced tools of the <a class="color-secondary font-bold" href="https://jbaes.be/Conditional-Access-Blueprint" target="_blank">Conditional Access Blueprint</a>! That's why they were build.</span></li>
+                                    <li class="color-accent font-bold mb-0 mt-2">Talk about it: <span class="text-dark">Engage in discussions about this, or invite me to spreak about the tool.</span></li>
+                                    <li class="color-accent font-bold mb-0 mt-2">Feedback or share ideas: <span class="text-dark">Have ideas or suggestions to improve this tool? Message me on <a class="font-bold" href="https://www.linkedin.com/in/jasper-baes" target="_blank">LinkedIn</a> (Jasper Baes)</span></li>
+                                    <li class="color-accent font-bold mb-0 mt-2">Contribute: <span class="text-dark">Join efforts to improve the quality, code and usability of this tool.</span></li>
+                                    <li class="color-accent font-bold mb-0 mt-2">Donate: <span class="text-dark">Consider supporting financially to cover costs (domain name, hosting, development costs, time, production costs, professional travel, ...) or future investments: donate on</span>
                                         <div class="mt-2">
                                             <a class="font-bold" href="https://www.buymeacoffee.com/jasperbaes" target="_blank"><button type="button" class="btn bg-orange text-white font-bold mb-3">☕ Buy Me A Coffee</button></a>
                                         </div>    
@@ -398,7 +388,7 @@ $template = @"
                     </div>
                 </div>
                                
-                <p class="text-center mt-3 mb-5 small text-secondary">Generated on $($datetime)</p>
+                <p class="text-center mt-3 mb-5 small text-secondary">Generated on $($datetime) for $($ORGANIZATIONNAME)</p>
 "@        
 
 # Show alert to update to new version

@@ -35,23 +35,15 @@ cd Maester-Conditional-Access-Test-Generator
 Install-Module Microsoft.Graph.Authentication
 ```
 
-Authenticating can be done with the `Connect-MgGraph` command or with an App Registration. To use an App Registration, set the credentials in the `settings.json` file:
+Authenticating can be done with the `Connect-MgGraph` command or with an App Registration. To use an App Registration, create the file `settings.json` in the root of the project and set the credentials in following JSON object:
 
 ```json
 {
     "tenantID": "",
     "clientID": "",
-    "clientSecret": "",
-    "organizationName": "My Organization",
+    "clientSecret": ""
 }
 ```
-
-| JSON key           |               Description |
-| ----------------- | --------------------------------------------------------------: |
-| tenantID | Required field when authenticating with App Registration.|
-| clientID | Required field when authenticating with App Registration.|
-| clientSecret | Required field when authenticating with App Registration.|
-| organizationName | Required field.|
 
 # 💻 Usage
 
@@ -77,9 +69,15 @@ Release version numbers: YEAR.WEEK
 - 2025.18
   - initial release (preview)
 
-# 🤝 Contributors
-
-- Jasper Baes (https://www.linkedin.com/in/jasper-baes)
+# 🏁 Roadmap
+- Fix: add a check so random chosen users are not excluded from the CA policy
+- Add search field and filters to HTML
+- Add dynamically generate tite of a test
+- Add User risk, Sign-in risk, Insider risk and User Principal risk
+- Add device properties
+- Add other access controls
+- Add session controls
+- Add export to xxxx.Tests.ps1
 
 # 📜 License
 
