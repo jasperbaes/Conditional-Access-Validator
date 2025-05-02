@@ -277,7 +277,6 @@ foreach ($UPN in $uniqueUPNs) {
 
     # Get all tests of this UPN
     $testsOfThisUPN = $MaesterTests | Where-Object { $_.UPN -eq $UPN}
-    Write-Host $testsOfThisUPN.count
 
     # Get unique appNames
     $uniqueTestsByApp = $testsOfThisUPN | Sort-Object appName -Unique
@@ -320,14 +319,13 @@ foreach ($UPN in $uniqueUPNs) {
     $CAJSON[$UPN] = $arr
 }
     
-$CAJSON | ConvertTo-Json -Depth 99
+$filenameTemplate = "$((Get-Date -Format 'yyyyMMddHHmm'))-$($ORGANIZATIONNAME)-ConditionalAccessMaesterTests"
+# $CAJSON | ConvertTo-Json -Depth 99
+$CAjsonRaw = $CAJSON | ConvertTo-Json -Depth 99 # used in JSON Crack
 
-##############
-# JSON CRACK #
-##############
-
-
-
+##################
+# END JSON CRACK #
+##################
 
 $endTime = Get-Date # end script timer
 
@@ -501,10 +499,13 @@ $template += @"
 
     <ul class="nav nav-tabs justify-content-center" id="myTab" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link color-secondary font-bold active" id="code-tab" data-bs-toggle="tab" data-bs-target="#code-tab-pane" type="button" role="tab" aria-controls="code-tab-pane" aria-selected="true">Maester code</button>
+            <button class="nav-link color-secondary font-bold px-4 active" id="code-tab" data-bs-toggle="tab" data-bs-target="#code-tab-pane" type="button" role="tab" aria-controls="code-tab-pane" aria-selected="true">Maester code</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link color-secondary font-bold" id="table-tab" data-bs-toggle="tab" data-bs-target="#table-tab-pane" type="button" role="tab" aria-controls="table-tab-pane" aria-selected="false">List</button>
+            <button class="nav-link color-secondary font-bold px-4" id="table-tab" data-bs-toggle="tab" data-bs-target="#table-tab-pane" type="button" role="tab" aria-controls="table-tab-pane" aria-selected="false">List</button>
+        </li>
+         <li class="nav-item" role="presentation">
+            <button class="nav-link color-secondary font-bold px-4" id="flow-tab" data-bs-toggle="tab" data-bs-target="#flow-tab-pane" type="button" role="tab" aria-controls="flow-tab-pane" aria-selected="false">Flow chart</button>
         </li>
     </ul>
 
@@ -608,6 +609,10 @@ $index++
 $template += @"
             </div>
         </div> 
+
+        <div class="tab-pane fade show" id="flow-tab-pane" role="tabpanel" aria-labelledby="flow-tab" tabindex="0"> 
+            <iframe class="mt-5 rounded" id="jsoncrackEmbed" src="https://jsoncrack.com/widget" width="100%" height="800px"></iframe>
+        </div>
     </div>
 "@
 
@@ -670,6 +675,18 @@ $template += @"
                     });
                 }
 
+                const jsonCrackEmbed = document.querySelector("iframe");
+
+                let json = JSON.stringify($CAjsonRaw);
+                let options = { theme: "light" }
+
+                console.log(json)
+                
+                window?.addEventListener("message", (event) => {
+                    jsonCrackEmbed.contentWindow.postMessage({
+                    json, options
+                    }, "*");
+                });
 
                 const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
                 const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
@@ -678,7 +695,6 @@ $template += @"
     </html>
 "@
 
-$filename = "$((Get-Date -Format 'yyyyMMddHHmm'))-$($ORGANIZATIONNAME)-ConditionalAccessMaesterTests.html"
-$template | Out-File -FilePath $filename
-# Start-Process $filename
-Write-OutputSuccess "Report available at: '$filename'`n"
+$template | Out-File -FilePath "$filenameTemplate.html"
+Start-Process "$filenameTemplate.html"
+Write-OutputSuccess "Report available at: '$filenameTemplate.html'`n"
