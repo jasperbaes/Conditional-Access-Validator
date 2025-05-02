@@ -335,7 +335,7 @@ foreach ($UPN in $uniqueUPNs) {
             }
 
             $arr1 += @{
-                "$($test2.clientApp) auth" += $arr2
+                "$($test2.clientApp) auth" = $arr2
             }
         }
 
