@@ -1,7 +1,9 @@
 param (
     [switch]$IncludeReportOnly,
     [switch]$SkipUserImpactMatrix,
-    [int]$UserImpactMatrixLimit
+    [int]$UserImpactMatrixLimit,
+    [string]$RemovePersonaURL,
+    [string]$AddPersonaURL
 )
 
 # Get current version
@@ -287,10 +289,6 @@ $filenameTemplate = "$((Get-Date -Format 'yyyyMMddHHmm'))-$($ORGANIZATIONNAME)-C
 $CAjsonRaw = $CAJSON | ConvertTo-Json -Depth 99 # used in JSON Crack
 Write-OutputSuccess "Generated flow chart"
 
-##################
-# END JSON CRACK #
-#################
-
 ######################
 # User Impact Matrix #
 ######################
@@ -306,9 +304,13 @@ if ($SkipUserImpactMatrix) {
     Write-OutputSuccess "User Impact Matrix available at: '$filenameTemplate.csv'"
 }
 
-##########################
-# END User Impact Matrix #
-##########################
+##################
+# Persona Report #
+##################
+
+$PersonaReport = Get-PersonaReport $conditionalAccessPolicies
+
+##################
 
 $endTime = Get-Date # end script timer
 
@@ -387,12 +389,12 @@ $template = @"
                     .table-matrix tr td:last-child { border-right: none !important; }
                     .table-matrix tr:last-child { border-bottom: none !important; }
               </style>
-              <title>&#128293; Maester Conditional Access Test Generator</title>
+              <title>&#9889; Maester Conditional Access Test Generator</title>
             </head>
             <body>
               <div class="container mt-5 mb-5 position-relative">
                 <h1 class="mb-0 text-center font-bold color-primary"> 
-                    <span class="icon-pulse">&#128293;</span> Maester Conditional Access 
+                    <span class="icon-pulse">&#9889;</span> Maester Conditional Access 
                     <span class="font-bold color-white px-2 py-0 ">Test Generator</span>
                 </h1>
                 <p class="text-center mt-3 mb-2 color-secondary">Part of the <a href="https://jbaes.be/Conditional-Access-Blueprint" target="_blank" class="font-bold color-secondary">Conditional Access Blueprint</a> framework</p>
@@ -487,7 +489,7 @@ $template += @"
             <button class="nav-link color-secondary font-bold px-4 active" id="code-tab" data-bs-toggle="tab" data-bs-target="#code-tab-pane" type="button" role="tab" aria-controls="code-tab-pane" aria-selected="true">Maester Code</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link color-secondary font-bold px-4" id="table-tab" data-bs-toggle="tab" data-bs-target="#table-tab-pane" type="button" role="tab" aria-controls="table-tab-pane" aria-selected="false">List</button>
+            <button class="nav-link color-secondary font-bold px-4" id="table-tab" data-bs-toggle="tab" data-bs-target="#table-tab-pane" type="button" role="tab" aria-controls="table-tab-pane" aria-selected="false">Simulation List</button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link color-secondary font-bold px-4" id="flow-tab" data-bs-toggle="tab" data-bs-target="#flow-tab-pane" type="button" role="tab" aria-controls="flow-tab-pane" aria-selected="false">Flow Chart</button>
@@ -495,11 +497,16 @@ $template += @"
         <li class="nav-item" role="presentation">
             <button class="nav-link color-secondary font-bold px-4" id="matrix-tab" data-bs-toggle="tab" data-bs-target="#matrix-tab-pane" type="button" role="tab" aria-controls="matrix-tab-pane" aria-selected="false">User Impact Matrix</button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link color-secondary font-bold px-4" id="persona-report-tab" data-bs-toggle="tab" data-bs-target="#persona-report-tab-pane" type="button" role="tab" aria-controls="persona-report-tab-pane" aria-selected="true">Persona Report</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link color-secondary font-bold px-4" id="persona-tab" data-bs-toggle="tab" data-bs-target="#persona-tab-pane" type="button" role="tab" aria-controls="persona-tab-pane" aria-selected="true">Decision tree</button>
+        </li>
     </ul>
 
 
     <div class="tab-content" id="myTabContent">
-
       <div class="tab-pane fade show active" id="code-tab-pane" role="tabpanel" aria-labelledby="code-tab" tabindex="0">
             <div class="position-relative">
                 <pre class="bg-lightgrey mt-3 px-5 py-0 border-lightgrey rounded">
@@ -524,7 +531,7 @@ $template += @"
             </div>
         </div>
 
-        <div class="tab-pane fade show" id="table-tab-pane" role="tabpanel" aria-labelledby="table-tab" tabindex="0">
+        <div class="tab-pane fade show" id="table-tab-pane" role="tabpanel" aria-labelledby="table-tab" tabindex="1">
             <div class="accordion" id="accordionExample">
 "@
 
@@ -622,12 +629,12 @@ $template += @"
             </div>
         </div> 
 
-        <div class="tab-pane fade show" id="flow-tab-pane" role="tabpanel" aria-labelledby="flow-tab" tabindex="0"> 
+        <div class="tab-pane fade show" id="flow-tab-pane" role="tabpanel" aria-labelledby="flow-tab" tabindex="2"> 
             <iframe class="mt-5 rounded" id="jsoncrackEmbed" src="https://jsoncrack.com/widget" width="100%" height="800px"></iframe>
             <p class="small text-secondary mt-2">If the flow chart doesn't load, please click the second button just above this message to try again.</p>
         </div>
         
-        <div class="tab-pane fade show" id="matrix-tab-pane" role="tabpanel" aria-labelledby="matrix-tab" tabindex="0">
+        <div class="tab-pane fade show" id="matrix-tab-pane" role="tabpanel" aria-labelledby="matrix-tab" tabindex="3">
             <a href="$($filenameTemplate).csv" target="_blank" class="btn btn-accent rounded mt-2">
                 <i class="bi bi-download me-2 ms-1"></i>
                 Download full CSV ($($userImpactMatrix.count) users)
@@ -687,11 +694,98 @@ $template += @"
                 <li>Add Conditional Formatting rules for coloring 'TRUE' and 'FALSE'</li>
             </ol>
         </div>
+
+        <div class="tab-pane fade show" id="persona-report-tab-pane" role="tabpanel" aria-labelledby="persona-report-tab" tabindex="4">
+            <p class="text-secondary mt-3 mb-1">...</p> 
+
+            <table class="table mb-5">
+                    <thead>
+                        <tr class="font-bold">
+                            <th scope="col" class="font-bold">Conditional Access policy</th>
+                            <th scope="col" class="font-bold">Included personas</th>
+                            <th scope="col" class="font-bold">Excluded personas</th>
+                        </tr>
+                    </thead>
+
+"@
+
+foreach ($result in $PersonaReport) {
+    $template += @"
+        <tr>
+            <td scope="col" class="font-bold color-secondary align-middle">$($result.policyName)
+            <span class="badge rounded-pill text-bg-light small color-secondary bg-lightgrey border-grey">$($result.policyState)</span>
+        </td>
+        <td scope="col">
+"@
+
+    if ($RemovePersonaURL -eq "") {
+        $usedRemovePersonaURL = "https://entra.microsoft.com/#view/Microsoft_AAD_ConditionalAccess/PolicyBlade/policyId/$($result.policyID)"
+    } else {
+        $usedRemovePersonaURL = $RemovePersonaURL
+    }
+
+    if ($AddPersonaURL -eq "") {
+        $usedAddPersonaURL = "https://entra.microsoft.com/#view/Microsoft_AAD_ConditionalAccess/PolicyBlade/policyId/$($result.policyID)"
+    } else {
+        $usedAddPersonaURL = $AddPersonaURL
+    }
+
+    foreach ($includedGroup in $result.includedGroups) {
+        $template += @"
+        <div class="mt-1 mb-1">
+            <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/$($includedGroup.groupID)" target="_blank" class="badge rounded-pill bg-lightorange color-accent border-orange position-relative text-decoration-none" data-bs-toggle="tooltip" data-bs-title="The Entra group '$($includedGroup.groupName)' has $($includedGroup.memberCount) member(s). Click to open in the Entra Portal.">
+                $($includedGroup.groupName)
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill text-white small" style="background-color: #ff9142 !important;">
+                    $($includedGroup.memberCount)
+                </span>
+            </a>
+            <a href="$($usedRemovePersonaURL)" target="_blank"><i class="bi bi-x ms-2 mt-1 color-accent" data-bs-toggle="tooltip" data-bs-title="Remove the Persona '$($includedGroup.groupName)' from the Conditional Access Policy '$($result.policyName)'."></i></a>
+        </div>
+"@    
+    }
+
+    $template += @"
+                    <a href="$($usedAddPersonaURL)" target="_blank"><i class="bi bi-plus color-lightgrey" data-bs-toggle="tooltip" data-bs-title="Add a Persona to be included in the Conditional Access Policy '$($result.policyName)'."></i></a>
+                </td>
+                <td scope="col">
+"@
+
+    foreach ($excludedGroup in $result.excludedGroups) {
+        $template += @"
+        <div class="mt-1 mb-1">
+            <a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/~/Overview/groupId/$($excludedGroup.groupID)" target="_blank" class="badge rounded-pill bg-lightorange color-accent border-orange position-relative text-decoration-none" data-bs-toggle="tooltip" data-bs-title="The Entra group '$($excludedGroup.groupName)' has $($excludedGroup.memberCount) member(s). Click to open in the Entra Portal.">
+                $($excludedGroup.groupName)
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill text-white small" style="background-color: #ff9142 !important;">
+                    $($excludedGroup.memberCount)
+                </span>
+                <a href="$($usedRemovePersonaURL)" target="_blank"><i class="bi bi-x ms-2 mt-1 color-accent" data-bs-toggle="tooltip" data-bs-title="Remove the Persona '$($includedGroup.groupName)' from the Conditional Access Policy '$($result.policyName)'."></i></a>
+            </a>
+        </div>
+"@    
+}
+
+$template += @"
+                    <a href="$($usedAddPersonaURL)" target="_blank"><i class="bi bi-plus color-lightgrey" data-bs-toggle="tooltip" data-bs-title="Add a Persona to be excluded from the Conditional Access Policy '$($result.policyName)'."></i></a>
+                </td>
+                <td scope="col">
+"@
+}
+                
+$template += @"
+            </table>                 
+                    
+        </div> 
+
+        <div class="tab-pane fade show" id="persona-tab-pane" role="tabpanel" aria-labelledby="persona-tab" tabindex="4">
+            <p class="small text-secondary mt-3 mb-1">If the flow chart doesn't load, please refresh the page.</p>  
+            <iframe class="mt-0 rounded" src="https://www.jbaes.be/CAF/CA-flow" width="100%" height="800px"></iframe>
+        </div> 
+
     </div>
 "@
 
 $template += @"
-            <p class="text-center mt-5 mb-0"><a class="color-primary font-bold text-decoration-none" href="https://github.com/jasperbaes/Maester-Conditional-Access-Test-Generator" target="_blank">&#128293;Maester Conditional Access Test Generator</a>, made by <a class="color-accent font-bold text-decoration-none" href="https://www.linkedin.com/in/jasper-baes" target="_blank">Jasper Baes</a></p>
+            <p class="text-center mt-5 mb-0"><a class="color-primary font-bold text-decoration-none" href="https://github.com/jasperbaes/Maester-Conditional-Access-Test-Generator" target="_blank">&#9889;Maester Conditional Access Test Generator</a>, made by <a class="color-accent font-bold text-decoration-none" href="https://www.linkedin.com/in/jasper-baes" target="_blank">Jasper Baes</a></p>
             <p class="text-center mt-1 mb-0 small"><a class="color-secondary" href="https://github.com/jasperbaes/Maester-Conditional-Access-Test-Generator" target="_blank">https://github.com/jasperbaes/Maester-Conditional-Access-Test-Generator</a></p>
             <p class="text-center mt-1 mb-5 small">This tool is part of the <a class="color-secondary font-bold" href="https://jbaes.be/Conditional-Access-Blueprint" target="_blank">Conditional Access Blueprint</a>. Read the <a class="color-secondary font-bold" href="https://github.com/jasperbaes/Maester-Conditional-Access-Test-Generator?tab=readme-ov-file#-license" target="_blank">license</a> for info about organizational profit-driven.</p>
 "@                     
@@ -749,7 +843,7 @@ $template += @"
                     });
                 }
 
-                const jsonCrackEmbed = document.querySelector("iframe");
+                const jsonCrackEmbed = document.querySelector("#jsoncrackEmbed");
 
                 let json = JSON.stringify($CAjsonRaw);
                 let options = { theme: "light" }
