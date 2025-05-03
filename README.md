@@ -3,9 +3,9 @@
   <a href="https://jbaes.be/CAB">
     <img src="./assets/logo.png" alt="Logo" height="80">
   </a>
-  <h3 align="center">Maester Conditional Access Test Generator</h3>
-  <p align="center">
-    By Jasper Baes
+  <h3 align="center">Conditional Access Validator</h3>
+  <p align="center"> 
+    By <a href="https://www.linkedin.com/in/jasper-baes">Jasper Baes</a>
     <br />
     <a href="https://github.com/jasperbaes/Maester-Conditional-Access-Test-Generator#%EF%B8%8F-installation">Installation</a>
     ·
@@ -17,11 +17,11 @@
   </p>
 </p>
 
-The Maester Conditional Access Test Generator is part of tool #4 in the <a href="https://www.jbaes.be/CAB">Conditional Access Blueprint</a>, a CA framework.
+The Conditional Access Test Validator is part of tool #4 in the <a href="https://www.jbaes.be/CAB">Conditional Access Blueprint</a>, a CA framework.
 
 # 🚀 About
 
-The Maester Conditional Access Test Generator is a PowerShell tool that automatically generates <a href="https://maester.dev">Maester.dev</a> test for Conditional access, based on your current Conditional Access setup. <a href="https://maester.dev">Maester.dev</a> is a Microsoft Security test automation framework.
+The Conditional Access Validator is a PowerShell tool that automatically generates <a href="https://maester.dev">Maester.dev</a> test for Conditional access, based on your current Conditional Access setup. <a href="https://maester.dev">Maester.dev</a> is a Microsoft Security test automation framework.
 
 TODO: GIF van example report
 
@@ -106,12 +106,6 @@ Release version numbers: YEAR.WEEK
 - Add other access controls
 - Add session controls
 - Create tree: add try catch
-- Connect-MgGraph bug?
-- Impact Matrix: show progress in terminal
-- Impact Matrix: show preview in html
-- Impact Matrix: download button
-- Impact Matrix: explanation
-- Impact Matrix: html instead of csv
 
 # 📜 License
 
