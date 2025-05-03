@@ -1,5 +1,7 @@
 param (
-    [switch]$IncludeReportOnly
+    [switch]$IncludeReportOnly,
+    [switch]$SkipUserImpactMatrix,
+    [int]$UserImpactMatrixLimit
 )
 
 # Get current version
@@ -116,10 +118,13 @@ Write-OutputSuccess "$($conditionalAccessPolicies.count) enabled Conditional Acc
 Write-OutputInfo "Generating Maester tests"
 
 [array]$MaesterTests = @() # Create empty array
+$i = 0
 
 # Loop over all discovered Conditional Access Policies
 foreach ($conditionalAccessPolicy in $conditionalAccessPolicies) {
     # Write-OutputInfo "Generating Maester test for '$($conditionalAccessPolicy.displayName)' ($($conditionalAccessPolicy.id)) -- $($allUsers.count) users, $($allApplications.count) applications in test scope"
+    $percentComplete = [math]::Round(($i / $conditionalAccessPolicies.Count) * 100)
+    Write-Progress -Activity "     Generating Maester tests..." -Status "$percentComplete% Complete" -PercentComplete $percentComplete
 
     $testsCreatedForThisCAPolicy = 0
 
@@ -205,6 +210,7 @@ foreach ($conditionalAccessPolicy in $conditionalAccessPolicies) {
         }
     }
 
+    $i++
     Write-OutputSuccess "$testsCreatedForThisCAPolicy tests generated for '$($conditionalAccessPolicy.displayName)' ($($conditionalAccessPolicy.id))"
     # break # Uncomment for debugging purposes
 }
@@ -289,9 +295,16 @@ Write-OutputSuccess "Generated flow chart"
 # User Impact Matrix #
 ######################
 
-$userImpactMatrix = Get-UserImpactMatrix $conditionalAccessPolicies
-$userImpactMatrix | Export-CSV -Path "$filenameTemplate.csv"
-Write-OutputSuccess "User Impact Matrix available at: '$filenameTemplate.csv'"
+$userImpactMatrix = @()
+
+if ($SkipUserImpactMatrix) {
+    Write-OutputInfo "Skipping User Impact Matrix"
+} else {
+    $userImpactMatrix = Get-UserImpactMatrix $conditionalAccessPolicies $UserImpactMatrixLimit
+    $columnNames = @($userImpactMatrix[0].Keys)
+    $userImpactMatrix | Export-CSV -Path "$filenameTemplate.csv"
+    Write-OutputSuccess "User Impact Matrix available at: '$filenameTemplate.csv'"
+}
 
 ##########################
 # END User Impact Matrix #
@@ -370,6 +383,9 @@ $template = @"
                     button.active { color: #ff9142 !important }
                     .accordion-button:not(.collapsed) { background-color: white !important; }
                     .pointer:hover { cursor: pointer}
+                    .table-matrix td { border-right: 1px solid #ffe9db !important; border-bottom: 1px solid #ffe9db !important }
+                    .table-matrix tr td:last-child { border-right: none !important; }
+                    .table-matrix tr:last-child { border-bottom: none !important; }
               </style>
               <title>&#128293; Maester Conditional Access Test Generator</title>
             </head>
@@ -468,13 +484,16 @@ $template += @"
 
     <ul class="nav nav-tabs justify-content-center" id="myTab" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link color-secondary font-bold px-4 active" id="code-tab" data-bs-toggle="tab" data-bs-target="#code-tab-pane" type="button" role="tab" aria-controls="code-tab-pane" aria-selected="true">Maester code</button>
+            <button class="nav-link color-secondary font-bold px-4 active" id="code-tab" data-bs-toggle="tab" data-bs-target="#code-tab-pane" type="button" role="tab" aria-controls="code-tab-pane" aria-selected="true">Maester Code</button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link color-secondary font-bold px-4" id="table-tab" data-bs-toggle="tab" data-bs-target="#table-tab-pane" type="button" role="tab" aria-controls="table-tab-pane" aria-selected="false">List</button>
         </li>
-         <li class="nav-item" role="presentation">
-            <button class="nav-link color-secondary font-bold px-4" id="flow-tab" data-bs-toggle="tab" data-bs-target="#flow-tab-pane" type="button" role="tab" aria-controls="flow-tab-pane" aria-selected="false">Flow chart</button>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link color-secondary font-bold px-4" id="flow-tab" data-bs-toggle="tab" data-bs-target="#flow-tab-pane" type="button" role="tab" aria-controls="flow-tab-pane" aria-selected="false">Flow Chart</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link color-secondary font-bold px-4" id="matrix-tab" data-bs-toggle="tab" data-bs-target="#matrix-tab-pane" type="button" role="tab" aria-controls="matrix-tab-pane" aria-selected="false">User Impact Matrix</button>
         </li>
     </ul>
 
@@ -605,8 +624,69 @@ $template += @"
 
         <div class="tab-pane fade show" id="flow-tab-pane" role="tabpanel" aria-labelledby="flow-tab" tabindex="0"> 
             <iframe class="mt-5 rounded" id="jsoncrackEmbed" src="https://jsoncrack.com/widget" width="100%" height="800px"></iframe>
+            <p class="small text-secondary mt-2">If the flow chart doesn't load, please click the second button just above this message to try again.</p>
         </div>
-        <p class="small text-secondary mt-2">If the flow chart doesn't load, please click the second button just above this message to try again.</p>
+        
+        <div class="tab-pane fade show" id="matrix-tab-pane" role="tabpanel" aria-labelledby="matrix-tab" tabindex="0">
+            <a href="$($filenameTemplate).csv" target="_blank" class="btn btn-accent rounded mt-2">
+                <i class="bi bi-download me-2 ms-1"></i>
+                Download full CSV ($($userImpactMatrix.count) users)
+            </a>
+
+            <table class="small table-matrix">
+                <thead>
+                    <tr>
+"@                
+
+foreach ($columnName in $columnNames) { 
+    $template += @"
+        <td class="p-2 font-bold">$($columnName)</td>
+"@
+}
+
+
+$template += @"
+                    </tr>
+                </thead>
+                <tbody>
+"@   
+
+foreach ($userImpactRow in ($userImpactMatrix | Select-Object -First 10)) {
+    $template += "<tr>`n"
+
+    foreach ($item in $userImpactRow.Values) {
+        if ($item -eq $true) {
+            $template += '    <td class="text-center p-2"> <i class="bi bi-check-circle-fill text-success"></i> </td>'
+        } elseif ($item -eq $false) {
+            $template += '    <td class="text-center p-2"> <i class="bi bi-x-circle-fill text-danger"></i> </td>'
+        } else {
+            $template += '   <td class="p-2"> ' + $item + ' </td>'
+        }
+    }
+
+    $template += "</tr>`n"
+}
+
+     
+$template += @"
+                </tbody>
+            </table>
+
+            <p class="mt-5 mb-1"><i class="bi bi-check-circle-fill text-success me-3"></i> The user is included in the Conditional Access policy</p>
+            <p><i class="bi bi-x-circle-fill text-danger me-3"></i>The user is excluded from the Conditional Access policy</p>
+
+            <p class="mt-4 mb-1 font-bold">Next steps:</p>
+            <ol>
+                <li>Download and open the full CSV</li>
+                <li>Select the full A column</li>
+                <li>Go to the tab 'Data' and click 'Text to Columns'</li>
+                <li>Select 'Delimited' and click Next</li>
+                <li>Only select 'Comma' and click Finish</li>
+                <li>Click on any cell with text and click 'Filter' in the 'Data' tab</li>
+                <li>Now you can filter a column or multiple columns, and search in columns</li>
+                <li>Add Conditional Formatting rules for coloring 'TRUE' and 'FALSE'</li>
+            </ol>
+        </div>
     </div>
 "@
 

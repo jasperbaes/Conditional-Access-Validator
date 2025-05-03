@@ -569,7 +569,8 @@ function Get-ConditionalAccessFlowChart  {
 
 function Get-UserImpactMatrix {
     param (
-        $conditionalAccessPolicies
+        $conditionalAccessPolicies,
+        $UserImpactMatrixLimit
     )
 
     Write-OutputInfo "Generating User Impact Matrix. This can take a while"
@@ -580,7 +581,17 @@ function Get-UserImpactMatrix {
 
     Write-OutputInfo "$($users.count) users found"
 
+    if ($UserImpactMatrixLimit -and $UserImpactMatrixLimit -gt 0) {
+        Write-OutputInfo "Limiting to the first $($UserImpactMatrixLimit) users"
+        $users = $users | Select-Object -First $UserImpactMatrixLimit
+    }
+    
+    $i = 0
+
     foreach ($user in $users) {
+        $percentComplete = [math]::Round(($i / $users.Count) * 100)
+        Write-Progress -Activity "     Generating CA User Impact Matrix..." -Status "$percentComplete% Complete" -PercentComplete $percentComplete
+
         $groupList = (Invoke-MgGraphRequest -Method GET ('https://graph.microsoft.com/v1.0/users/' + $user.id + '/memberOf?$select=id')).value.id
 
         $userObject = [ordered]@{
@@ -596,6 +607,8 @@ function Get-UserImpactMatrix {
         }
 
         $userImpactMatrix += $userObject
+
+        $i++
     }
 
     return $userImpactMatrix
