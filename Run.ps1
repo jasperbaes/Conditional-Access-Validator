@@ -92,7 +92,7 @@ $Global:ORGANIZATIONNAME = (Get-MgOrganization).DisplayName
 
 # Fetch Conditional Access policies
 Write-OutputInfo "Fetching Conditional Access policies"
-$conditionalAccessPolicies = Invoke-MgGraphRequest -Method GET 'https://graph.microsoft.com/v1.0/policies/conditionalAccessPolicies'
+$conditionalAccessPolicies = Invoke-MgGraphRequest -Method GET 'https://graph.microsoft.com/v1.0/policies/conditionalAccessPolicies?$orderby=displayName'
 $conditionalAccessPolicies = $conditionalAccessPolicies.value | Select id, displayName, state, conditions, grantControls
 
 if ($conditionalAccessPolicies.count -gt 0) {
@@ -162,7 +162,6 @@ foreach ($conditionalAccessPolicy in $conditionalAccessPolicies) {
                         foreach ($userRisk in $conditionalAccessPolicy.conditions.userRiskLevels) { # loop over user risks
 
                             # - TODO: SignInRiskLevel 
-                            # - TODO: UserRiskLevel
                             # - TODO: Authenticationflow
                             # - TODO: DeviceProperties
                             # - TODO: InsiderRisk
@@ -171,31 +170,31 @@ foreach ($conditionalAccessPolicy in $conditionalAccessPolicies) {
                             $invertedTest = $user.type -eq "excluded" -or $app.type -eq "excluded" -or $ipRange.type -eq "excluded" -or $devicePlatform.type -eq "excluded"
                             
                             if ($conditionalAccessPolicy.grantControls.builtInControls -contains "block") {
-                                $testName = if ($invertedTest) { "$($user.UPN) should not be blocked for application $($app.applicationName)" } else { "$($user.UPN) should be blocked for application $($app.applicationName)" }
+                                $testName = Create-TestName $invertedTest 'block' $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk
                                 $MaesterTests += Generate-MaesterTest $invertedTest 'block' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk
                                 $testsCreatedForThisCAPolicy++
                             }
 
                             if ($conditionalAccessPolicy.grantControls.builtInControls -contains "mfa") { # TODO: I think that if the action is 'passwordChange', then 'mfa' is also given as an action. To check. And to check if me must leave this out then...
-                                $testName = if ($invertedTest) { "$($user.UPN) should not have MFA for application $($app.applicationName)" } else { "$($user.UPN) should have MFA for application $($app.applicationName)" }
+                                $testName = Create-TestName $invertedTest 'mfa' $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk
                                 $MaesterTests += Generate-MaesterTest $invertedTest 'mfa' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk
                                 $testsCreatedForThisCAPolicy++
                             }
 
                             if ($conditionalAccessPolicy.grantControls.builtInControls -contains "passwordChange") { 
-                                $testName = if ($invertedTest) { "$($user.UPN) should not have a password reset for application $($app.applicationName)" } else { "$($user.UPN) should have a password reset for application $($app.applicationName)" }
+                                $testName = Create-TestName $invertedTest 'passwordChange' $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk
                                 $MaesterTests += Generate-MaesterTest $invertedTest 'passwordChange' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk
                                 $testsCreatedForThisCAPolicy++
                             }
 
                             if ($conditionalAccessPolicy.grantControls.builtInControls -contains "compliantDevice") {
-                                $testName = if ($invertedTest) { "$($user.UPN) should not have a compliant device for application $($app.applicationName)" } else { "$($user.UPN) should have a compliant device for application $($app.applicationName)" }
+                                $testName = Create-TestName $invertedTest 'compliantDevice' $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk
                                 $MaesterTests += Generate-MaesterTest $invertedTest 'compliantDevice' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk
                                 $testsCreatedForThisCAPolicy++
                             }
 
                             if ($conditionalAccessPolicy.grantControls.builtInControls -contains "domainJoinedDevice") {
-                                $testName = if ($invertedTest) { "$($user.UPN) should not have a domain joined device for application $($app.applicationName)" } else { "$($user.UPN) should have a domain joined device for application $($app.applicationName)" }
+                                $testName = Create-TestName $invertedTest 'domainJoinedDevice' $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk
                                 $MaesterTests += Generate-MaesterTest $invertedTest 'domainJoinedDevice' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk
                                 $testsCreatedForThisCAPolicy++
                             }
@@ -207,7 +206,7 @@ foreach ($conditionalAccessPolicy in $conditionalAccessPolicies) {
     }
 
     Write-OutputSuccess "$testsCreatedForThisCAPolicy tests generated for '$($conditionalAccessPolicy.displayName)' ($($conditionalAccessPolicy.id))"
-    # break
+    # break # Uncomment for debugging purposes
 }
 
 Write-OutputSuccess "Generated $($MaesterTests.count) Maester tests"
@@ -232,18 +231,26 @@ foreach ($MaesterTest in $MaesterTests) {
 
     if ($MaesterTest.clientApp -ne "all") { # don't add to the test if 'all'
         $templateMaester += "-ClientAppType `'$($MaesterTest.clientApp)`' "
+    } else {
+        $MaesterTest.clientApp = '/' # set als '/' for the HTML report
     }
 
     if ($MaesterTest.IPRange -and $MaesterTest.IPRange -ne "All") {
         $templateMaester += "-Country 'FR' -IpAddress `'$($MaesterTest.IPRange)`' "
+    } else {
+        $MaesterTest.IPRange = '/' # set als '/' for the HTML report
     }
 
     if ($MaesterTest.devicePlatform -and $MaesterTest.devicePlatform -ne "All") {
         $templateMaester += "-DevicePlatform `'$($MaesterTest.devicePlatform)`' "
+    } else {
+        $MaesterTest.devicePlatform = '/' # set als '/' for the HTML report
     }
 
     if ($MaesterTest.userRisk -and $MaesterTest.userRisk -ne "All") { # the first letter must be uppercase (e.g.: 'Low', 'Medium', 'High')
         $templateMaester += "-UserRiskLevel `'$($MaesterTest.userRisk.Substring(0,1).ToUpper() + $MaesterTest.userRisk.Substring(1))`' "
+    } else {
+        $MaesterTest.userRisk = '/' # set als '/' for the HTML report
     }
 
     $templateMaester += "`n"
@@ -266,91 +273,13 @@ Write-OutputSuccess "Translated to the Maester test layout"
 # JSON CRACK #
 ##############
 
-$CAJSON = @{} # create empty object
-
-# Get unique UPNs
-$uniqueUPNs = $MaesterTests | Select-Object -ExpandProperty UPN -Unique
-
-
-foreach ($UPN in $uniqueUPNs) {
-    $arr = @()
-
-    # Get all tests of this UPN
-    $testsOfThisUPN = $MaesterTests | Where-Object { $_.UPN -eq $UPN}
-
-    # Get unique appNames
-    $uniqueTestsByApp = $testsOfThisUPN | Sort-Object appName -Unique
-
-    foreach ($test1 in $uniqueTestsByApp) {
-        $arr1 = @()
-
-        # Get all tests of this UPN and app
-        $testsOfThisUPNAndApp = $MaesterTests | Where-Object { $_.UPN -eq $UPN -and $_.appName -eq $test1.appName}
-
-        # Get unique appNames
-        $uniqueTestsByClientApp = $testsOfThisUPN | Sort-Object clientApp -Unique
-
-        foreach ($test2 in $uniqueTestsByClientApp) {
-            $arr2 = @()
-
-            # Get all tests of this UPN, app and clientApp
-            $testsOfThisUPNAndAppAndClientApp = $MaesterTests | Where-Object { $_.UPN -eq $UPN -and $_.appName -eq $test2.appName -and $_.clientApp -eq $test2.clientApp}
-
-            # Get unique device platforms
-            $uniqueTestsByDevicePlatform = $testsOfThisUPNAndAppAndClientApp | Sort-Object devicePlatform -Unique
-
-            foreach ($test3 in $uniqueTestsByDevicePlatform) {
-
-                # 
-                $arr3 = @()
-
-                # Get all tests of this UPN, app, clientApp and OS platform
-                $testsOfThisUPNAndAppAndClientAppAndPlatform = $MaesterTests | Where-Object { $_.UPN -eq $UPN -and $_.appName -eq $test3.appName -and $_.clientApp -eq $test3.clientApp -and $_.IPRange -eq $test3.IPRange}
-    
-                # Get unique device platforms
-                $uniqueTestsByIPRange = $testsOfThisUPNAndAppAndClientAppAndPlatform | Sort-Object IPRange -Unique
-
-                foreach ($test4 in $uniqueTestsByIPRange) {
-                    $finalAction = ($test4.inverted) ? @("no $($test4.expectedControl) ($($test4.CAPolicyName))") : @("$($test4.expectedControl) ($($test4.CAPolicyName))") # include 'not' if the test is inverted
-                    
-                    if ($test4.IPRange -eq 'All') {
-                        $arr3 += $finalAction
-                    } else {
-                        $arr3 += @{
-                            "IP: $($test4.IPRange)" = $finalAction
-                        } 
-                    }  
-                }
-                # 
-
-                # $finalAction = ($test3.inverted) ? @("no $($test3.expectedControl) ($($test3.CAPolicyName))") : @("$($test3.expectedControl) ($($test3.CAPolicyName))") # include 'not' if the test is inverted
-
-                if ($test3.devicePlatform -eq 'All') {
-                    $arr2 += $arr2
-                } else {
-                    $arr2 += @{
-                        "OS: $($test3.devicePlatform)" = $arr3
-                    }
-                }
-            }
-
-            $arr1 += @{
-                "$($test2.clientApp) auth" = $arr2
-            }
-        }
-
-        $arr += @{
-            $test1.appName = $arr1
-        }
-
-    }
-
-    $CAJSON[$UPN] = $arr
-}
+Write-OutputInfo "Generating flow chart"
+$CAJSON = Get-ConditionalAccessFlowChart $MaesterTests
     
 $filenameTemplate = "$((Get-Date -Format 'yyyyMMddHHmm'))-$($ORGANIZATIONNAME)-ConditionalAccessMaesterTests"
-# $CAJSON | ConvertTo-Json -Depth 99
+# $CAJSON | ConvertTo-Json -Depth 99 # Uncomment for debugging purposes
 $CAjsonRaw = $CAJSON | ConvertTo-Json -Depth 99 # used in JSON Crack
+Write-OutputSuccess "Generated flow chart"
 
 ##################
 # END JSON CRACK #
@@ -438,7 +367,7 @@ $template = @"
                     <span class="icon-pulse">&#128293;</span> Maester Conditional Access 
                     <span class="font-bold color-white px-2 py-0 ">Test Generator</span>
                 </h1>
-                <p class="text-center mt-3 mb-2 color-secondary">Automatically generate Maester test for your Conditional Access policies</p>
+                <p class="text-center mt-3 mb-2 color-secondary">Part of the <a href="https://jbaes.be/Conditional-Access-Blueprint" target="_blank" class="font-bold color-secondary">Conditional Access Blueprint</a> framework</p>
                 <i class="bi bi-question-circle position-absolute pointer color-secondary" style="top: 10px; right: 10px;" data-bs-toggle="modal" data-bs-target="#infoModal"></i>
 
                 <div class="modal fade" id="infoModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
@@ -452,9 +381,9 @@ $template = @"
                                 <p>The goal of the Maester CA Test Generator is to help you automatically validate the effectiveness of a Conditional Access setup.</p>
                                 
                                 <div class="alert alert-warning d-flex align-items-center fade show" role="alert">
-                                    <i class="bi bi-exclamation-circle me-3"></i>
-                                    <div>
-                                        This project is <span class="font-bold">open-source</span> and may contain errors or inaccuracies. No one can be held responsible for any issues arising from the use of this project. 
+                                    <i class="bi bi-exclamation-circle me-4"></i>
+                                    <div class="">
+                                        <p class="mb-0">This project is <span class="font-bold">open-source</span> and may contain errors, bugs or inaccuracies. If so, please create an <a href="https://github.com/jasperbaes/Maester-Conditional-Access-Test-Generator/issues" target="_blank" class="font-bold color-secondary">issue</a>. No one can be held responsible for any issues arising from the use of this project. </p>
                                     </div>
                                 </div>
 
@@ -467,7 +396,7 @@ $template = @"
                                 <ul>
                                     <li class="color-accent font-bold mb-0 mt-2">Use it: <span class="text-dark">Use the tool and other referenced tools of the <a class="color-secondary font-bold" href="https://jbaes.be/Conditional-Access-Blueprint" target="_blank">Conditional Access Blueprint</a>! That's why they were build.</span></li>
                                     <li class="color-accent font-bold mb-0 mt-2">Talk about it: <span class="text-dark">Engage in discussions about this, or invite me to spreak about the tool.</span></li>
-                                    <li class="color-accent font-bold mb-0 mt-2">Feedback or share ideas: <span class="text-dark">Have ideas or suggestions to improve this tool? Message me on <a class="font-bold" href="https://www.linkedin.com/in/jasper-baes" target="_blank">LinkedIn</a> (Jasper Baes)</span></li>
+                                    <li class="color-accent font-bold mb-0 mt-2">Feedback or share ideas: <span class="text-dark">Have ideas or suggestions to improve this tool? Message me on <a class="font-bold color-secondary" href="https://www.linkedin.com/in/jasper-baes" target="_blank">LinkedIn</a> (Jasper Baes)</span></li>
                                     <li class="color-accent font-bold mb-0 mt-2">Contribute: <span class="text-dark">Join efforts to improve the quality, code and usability of this tool.</span></li>
                                     <li class="color-accent font-bold mb-0 mt-2">Donate: <span class="text-dark">Consider supporting financially to cover costs (domain name, hosting, development costs, time, production costs, professional travel, ...) or future investments: donate on</span>
                                         <div class="mt-2">
@@ -476,8 +405,7 @@ $template = @"
                                     </li>
                                 </ul>
                                 <p class="small text-secondary">The Maester Conditional Access Test Generator was developed entirely on my own time, without any support or involvement from any organization or employer.</p>
-                                <hr class="mt-3 mb-3 w-100"/>
-                                <p class="small text-secondary">Please be aware that the Maester Conditional Access Test Generator is intended solely for individual administrators' personal use. It is not licensed for use by organizations seeking financial gain. This restriction is in place to ensure the responsible and fair use of the tools. Admins are encouraged to leverage this code to enhance their own understanding and management within their respective environments, but any commercial or organizational profit-driven usage is strictly prohibited. If interested to use this for financial gain, contact me. For all generated reports, the header and footer and modal of the HTML report must be unchanged.</p>
+                                <p class="small text-secondary">Please be aware that this project is only allowed for use by organizations seeking financial gain, on 2 conditions: 1. this is communicated to me over LinkedIn, 2. the header and footer of the HTML report is unchanged. Colors can be changed. Other items can be added.</p>
                                 <p class="small text-secondary">Thank you for respecting these usage terms and contributing to a fair and ethical software community. </p>
                             </div>
                         </div>
@@ -552,7 +480,7 @@ $template += @"
                     <button class="btn btn-secondary col me-2 rounded" id="liveToastBtn" data-bs-toggle="tooltip" data-bs-title="Click to copy to clipboard">
                         <i class="bi bi-copy"></i>
                     </button>
-                    <button class="btn btn-secondary col rounded" id="liveToastBtnDownload" data-bs-toggle="tooltip" data-bs-title="Click to download">
+                    <button class="btn btn-secondary col rounded" id="liveToastBtnDownload" data-bs-toggle="tooltip" data-bs-title="Click to download into your Maester project">
                         <i class="bi bi-download"></i>
                     </button>
                 </div>
@@ -632,6 +560,10 @@ $template += @"
                                 <td>Device Platform</td>
                                 <td>$($MaesterTest.devicePlatform)</td>
                             </tr>
+                            <tr>
+                                <td>User risk</td>
+                                <td>$($MaesterTest.userRisk)</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -650,13 +582,14 @@ $template += @"
         <div class="tab-pane fade show" id="flow-tab-pane" role="tabpanel" aria-labelledby="flow-tab" tabindex="0"> 
             <iframe class="mt-5 rounded" id="jsoncrackEmbed" src="https://jsoncrack.com/widget" width="100%" height="800px"></iframe>
         </div>
+        <p class="small text-secondary mt-2">If the flow chart doesn't load, please click the second button just above this message to try again.</p>
     </div>
 "@
 
 $template += @"
             <p class="text-center mt-5 mb-0"><a class="color-primary font-bold text-decoration-none" href="https://github.com/jasperbaes/Maester-Conditional-Access-Test-Generator" target="_blank">&#128293;Maester Conditional Access Test Generator</a>, made by <a class="color-accent font-bold text-decoration-none" href="https://www.linkedin.com/in/jasper-baes" target="_blank">Jasper Baes</a></p>
             <p class="text-center mt-1 mb-0 small"><a class="color-secondary" href="https://github.com/jasperbaes/Maester-Conditional-Access-Test-Generator" target="_blank">https://github.com/jasperbaes/Maester-Conditional-Access-Test-Generator</a></p>
-            <p class="text-center mt-1 mb-5 small">This tool is part of the <a class="color-secondary font-bold" href="https://jbaes.be/Conditional-Access-Blueprint" target="_blank">Conditional Access Blueprint</a>. Any commercial or organizational profit-driven usage is strictly prohibited.</p>
+            <p class="text-center mt-1 mb-5 small">This tool is part of the <a class="color-secondary font-bold" href="https://jbaes.be/Conditional-Access-Blueprint" target="_blank">Conditional Access Blueprint</a>. Read the <a class="color-secondary font-bold" href="https://github.com/jasperbaes/Maester-Conditional-Access-Test-Generator?tab=readme-ov-file#-license" target="_blank">license</a> for info about organizational profit-driven.</p>
 "@                     
 
 $template += @"

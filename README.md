@@ -21,7 +21,7 @@ The Maester Conditional Access Test Generator is part of tool #4 in the <a href=
 
 # 🚀 About
 
-The Maester Conditional Access Test Generator is a PowerShell tool that automatically generates Maester.dev test for Conditional access, based on your current Conditional Access setup.
+The Maester Conditional Access Test Generator is a PowerShell tool that automatically generates <a href="https://maester.dev">Maester.dev</a> test for Conditional access, based on your current Conditional Access setup. <a href="https://maester.dev">Maester.dev</a> is a Microsoft Security test automation framework.
 
 TODO: GIF van example report
 
@@ -48,13 +48,41 @@ Authenticating can be done with the `Connect-MgGraph` command or with an App Reg
 # 💻 Usage
 
 ```powershell
+# Connecting with your user account
 Connect-MgGraph
 .\run.ps1
 
+# Connecting with an App Registration
+.\run.ps1
+
+# OR if you want to include CA policies that are in 'report-only' mode
 .\run.ps1 -IncludeReportOnly
 ```
 
 TODO: usage video (timestamp)
+
+# 💡 Hardcoded rules
+
+For each Conditional Access policy, a test is created based on the configured properties in the CA policy itself. Some hard-coded rules:
+
+- Conditional Access policies are imported sorted on their name.
+- if the CA policy is scoped on `'All users'`, we limit the scope to 5 random users. These accounts are indicated with `'(random)'` after their UPN
+- if the CA policy is scoped on a group (included or excluded), we limit the scope to 5 random users of that group. These accounts are indicated with `'(random)'` after their UPN
+- if the CA policy is scoped on `'All guets'`, we limit the scope to 2 random guests. These accounts are indicated with `'(random)'` after their UPN
+- if the CA policy is scoped on `'All resources'` cloud apps, we limit the scope to `Office 365 Exchange Online`, `Office 365 SharePoint Online` and `Office 365 Portal`
+- if the CA policy is scoped on `Office365` cloud apps, we limit the scope to `Office 365 Exchange Online`, `Office 365 SharePoint Online` and `Office 365 Portal`
+- if the CA policy is scoped on more than 3 cloud apps, we limit the scope to the first 3 applications
+- if the CA policy is scope on a Named Location, we add tests for each IP range of the Named Location
+- if the CA policy is scope on a Named Location, the country of the test will always be `'FR'` (France)
+
+# 🚧 Current limitations
+- sign-in risk is not supported   
+- insider risk is not supported
+- user principal risk is not supported
+- device properties are not supported
+- session controls are not supported
+- excluded guest users are not supported, only included guests are supported
+- guest types are not supported. In each case, 2 random guests are chosen for the test.
 
 # 📞 Contact
 
@@ -72,44 +100,17 @@ Release version numbers: YEAR.WEEK
 # 🏁 Roadmap
 - Fix: add a check so random chosen users are not excluded from the CA policy
 - Add search field and filters to HTML
-- Add dynamically generate tite of a test
-- Add User risk, Sign-in risk, Insider risk and User Principal risk
+- Add Sign-in risk, Insider risk and User Principal risk
 - Add device properties
 - Add other access controls
 - Add session controls
-- Create tree: weglaten van een property als die 'All' is.
-
-
-Decision tree:
-```
-{
-  "andreas.lauwers_thecollective.eu#EXT#@thecollectiveonlinetest.onmicrosoft.com": [
-    {
-      "Office 365 Exchange Online": [
-        {
-          "other": [
-            "block"
-          ]
-        }
-      ]
-    },
-    {
-      "Office 365 SharePoint Online": [
-        {
-          "other": [ "mfa" ]
-        },
-        {
-          "browser": [ "mfa" ]
-        }
-      ]
-    }
-  ]
-}
-```
+- Create tree: add try catch
 
 # 📜 License
 
-Please be aware that this project is not allowed for use by organizations seeking financial gain. If interested, contact me. For all generated reports, the header and footer of the HTML report must be unchanged.
+Please be aware that this project is only allowed for use by organizations seeking financial gain, on 2 conditions:
+- this is communicated to me over LinkedIn
+- the header and footer of the HTML report is unchanged. Colors can be changed. Other items can be added.
 
 Thank you for respecting these usage terms and contributing to a fair and ethical software community. 
 
