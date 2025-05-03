@@ -83,6 +83,7 @@ For each Conditional Access policy, a test is created based on the configured pr
 - session controls are not supported
 - excluded guest users are not supported, only included guests are supported
 - guest types are not supported. In each case, 2 random guests are chosen for the test.
+- JSON Crack is integrated to visualize the flow chart. JSON Crack has a size limitation in their free plan.
 
 # 📞 Contact
 
@@ -105,6 +106,12 @@ Release version numbers: YEAR.WEEK
 - Add other access controls
 - Add session controls
 - Create tree: add try catch
+- Connect-MgGraph bug?
+- Impact Matrix: show progress in terminal
+- Impact Matrix: show preview in html
+- Impact Matrix: download button
+- Impact Matrix: explanation
+- Impact Matrix: html instead of csv
 
 # 📜 License
 

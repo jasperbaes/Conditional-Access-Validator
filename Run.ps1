@@ -283,7 +283,19 @@ Write-OutputSuccess "Generated flow chart"
 
 ##################
 # END JSON CRACK #
-##################
+#################
+
+######################
+# User Impact Matrix #
+######################
+
+$userImpactMatrix = Get-UserImpactMatrix $conditionalAccessPolicies
+$userImpactMatrix | Export-CSV -Path "$filenameTemplate.csv"
+Write-OutputSuccess "User Impact Matrix available at: '$filenameTemplate.csv'"
+
+##########################
+# END User Impact Matrix #
+##########################
 
 $endTime = Get-Date # end script timer
 
@@ -504,7 +516,19 @@ foreach ($MaesterTest in $MaesterTests) {
             <h2 class="accordion-header">
                 <button class="accordion-button font-bold text-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse$index" aria-expanded="true" aria-controls="collapse$index">
                     $($MaesterTest.testTitle)
-                    <span class="badge rounded-pill bg-lightorange color-accent border-orange position-absolute end-0 me-5">$($MaesterTest.expectedControl)</span>
+"@                
+
+if ($MaesterTest.inverted) {
+    $template += @"
+        <span class="badge rounded-pill bg-lightorange color-accent border-orange position-absolute end-0 me-5">no $($MaesterTest.expectedControl)</span>
+"@   
+} else {
+    $template += @"
+        <span class="badge rounded-pill bg-lightorange color-accent border-orange position-absolute end-0 me-5">$($MaesterTest.expectedControl)</span>
+"@ 
+}
+              
+    $template += @"
                 </button>
             </h2>
             <div id="collapse$index" class="accordion-collapse collapse" data-bs-parent="#accordionExample">
