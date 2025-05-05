@@ -1,0 +1,3 @@
+function Write-OutputError { param ( [string]$Message ) Write-Host " [" -ForegroundColor White -NoNewline; Write-Host "-" -ForegroundColor Red -NoNewline; Write-Host "] $Message" -ForegroundColor White }
+function Write-OutputSuccess { param ( [string]$Message ) Write-Host " [" -ForegroundColor White -NoNewline; Write-Host "+" -ForegroundColor Green -NoNewline; Write-Host "] $Message" -ForegroundColor White }
+function Write-OutputInfo { param ( [string]$Message ) Write-Host " [" -ForegroundColor White -NoNewline; Write-Host "i" -ForegroundColor Blue -NoNewline; Write-Host "] $Message" -ForegroundColor White }

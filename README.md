@@ -7,11 +7,11 @@
   <p align="center"> 
     By <a href="https://www.linkedin.com/in/jasper-baes">Jasper Baes</a>
     <br />
-    <a href="https://github.com/jasperbaes/Maester-Conditional-Access-Test-Generator#%EF%B8%8F-installation">Installation</a>
+    <a href="https://github.com/jasperbaes/Conditional-Access-Validator#%EF%B8%8F-installation">Installation</a>
     ·
-     <a href="https://github.com/jasperbaes/Maester-Conditional-Access-Test-Generator#-usage">Usage</a>
+     <a href="https://github.com/jasperbaes/Conditional-Access-Validator#-usage">Usage</a>
     ·
-    <a href="https://github.com/jasperbaes/Maester-Conditional-Access-Test-Generator/issues">Report Bug</a>
+    <a href="https://github.com/jasperbaes/Conditional-Access-Validator/issues">Report Bug</a>
     ·
      <a href="https://www.jbaes.be/CAB">Conditional Access Blueprint</a>
   </p>
@@ -30,8 +30,8 @@ TODO: GIF van example report
 TODO: installation video
 
 ```powershell
-git clone https://github.com/jasperbaes/Maester-Conditional-Access-Test-Generator
-cd Maester-Conditional-Access-Test-Generator
+git clone https://github.com/jasperbaes/Conditional-Access-Validator
+cd Conditional-Access-Validator
 Install-Module Microsoft.Graph.Authentication
 ```
 
@@ -89,7 +89,7 @@ For each Conditional Access policy, a test is created based on the configured pr
 
 Jasper Baes (https://www.linkedin.com/in/jasper-baes)
 
-Discovered a bug or do you have an improvement? Create an <a href="https://github.com/jasperbaes/Maester-Conditional-Access-Test-Generator/issues">issue</a>.
+Discovered a bug or do you have an improvement? Create an <a href="https://github.com/jasperbaes/Conditional-Access-Validator/issues">issue</a>.
 
 # 🆕 Release history
 
