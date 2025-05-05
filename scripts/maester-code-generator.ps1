@@ -6,7 +6,8 @@
 
 function Create-MaesterCode {
     param (
-        $MaesterTests
+        $MaesterTests,
+        $IncludeReportOnly
     )
 
     Write-OutputInfo "Translating to the Maester code"
@@ -45,7 +46,23 @@ function Create-MaesterCode {
             $MaesterTest.userRisk = '/' # set als '/' for the HTML report
         }
 
+        if ($MaesterTest.signInRisk -and $MaesterTest.signInRisk -ne "All") { # the first letter must be uppercase (e.g.: 'Low', 'Medium', 'High')
+            $templateMaester += "-SignInRiskLevel `'$($MaesterTest.signInRisk.Substring(0,1).ToUpper() + $MaesterTest.signInRisk.Substring(1))`' "
+        } else {
+            $MaesterTest.signInRisk = '/' # set als '/' for the HTML report
+        }
+
+        if ($MaesterTest.userAction -and $MaesterTest.userAction -ne "All") {
+            $templateMaester += "-UserAction `'$($MaesterTest.userAction)`' "
+        } else {
+            $MaesterTest.userAction = '/' # set als '/' for the HTML report
+        }
+
         $templateMaester += "`n"
+
+        if (-Not $IncludeReportOnly) {
+            $templateMaester +=  "`t`t`$policiesEnforced = `$policiesEnforced | Where-Object { `$_.state -eq 'enabled' } `n"
+        }
 
         if ($MaesterTest.inverted -eq $true) {
             $templateMaester += "`t`t`$policiesEnforced.grantControls.builtInControls | Should -Not -Contain `'$($MaesterTest.expectedControl)`' `n"

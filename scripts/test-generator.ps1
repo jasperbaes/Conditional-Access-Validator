@@ -314,7 +314,9 @@ function Generate-MaesterTest {
         $clientApp,
         $IPRange,
         $devicePlatform,
-        $userRisk
+        $userRisk,
+        $signInRisk,
+        $userAction
     )
 
     return New-Object PSObject -Property @{
@@ -331,6 +333,8 @@ function Generate-MaesterTest {
         IPRange = $IPRange
         devicePlatform = $devicePlatform
         userRisk = $userRisk
+        signInRisk = $signInRisk
+        userAction = $userAction
     }
 }
 
@@ -399,7 +403,7 @@ function Get-IPRanges {
 }
 
 
-# This function returns ...
+# This function returns all included and excluded device platforms
 function Get-devicePlatforms {
     param (
         $includedDevicePlatforms,
@@ -408,7 +412,7 @@ function Get-devicePlatforms {
     
     $allPlatforms = @() # create empty array
 
-    # if the CA policy has no included or excluded location set, then create an 'empty' IP range. This will not be added to the test itself. This object is required so it continues in the nested forEach loop
+    # if the CA policy has no included or excluded location set, then create an 'empty' device list. This will not be added to the test itself. This object is required so it continues in the nested forEach loop
     if ($includedDevicePlatforms.count -eq 0 -or $excludedDevicePlatforms.count -eq 0) {
         $allPlatforms += @{
             OS = 'All'
@@ -449,7 +453,9 @@ function Create-TestName {
         $clientApp,
         $IPRange,
         $devicePlatform,
-        $userRisk
+        $userRisk,
+        $signInRisk,
+        $userAction
     )
 
     $testTitle = "$expectedControl for $UPN on $appName"
@@ -473,9 +479,18 @@ function Create-TestName {
         $testTitle += " with $userRisk user risk"
     }
 
+    if ($signInRisk -ne "All") { # only add this property to the test title if it is set in the test
+        $testTitle += " with $signInRisk signin risk"
+    }
+
+    if ($userAction -and $userAction -ne "" -and $userAction -ne "All") { # only add this property to the test title if it is set in the test
+        $testTitle += " with $userAction user action"
+    }
+
     return $testTitle
 }
 
+# This is the main function
 function Create-Simulations {
     param(
         $conditionalAccessPolicies
@@ -533,42 +548,57 @@ function Create-Simulations {
 
                             foreach ($userRisk in $conditionalAccessPolicy.conditions.userRiskLevels) { # loop over user risks
 
-                                # - TODO: SignInRiskLevel 
-                                # - TODO: Authenticationflow
-                                # - TODO: DeviceProperties
-                                # - TODO: InsiderRisk
+                                [array]$allSignInRisks = $conditionalAccessPolicy.conditions.signInRiskLevels
+                            
+                                # if no user risk levels are set, then set 'all'. This will not be printed in the test itself
+                                if (-Not $conditionalAccessPolicy.conditions.signInRiskLevels) {
+                                    $conditionalAccessPolicy.conditions.signInRiskLevels = @('All') # TODO: do we set 'None' here as default? Then every test where SigninRisk is not configured, 'None' is added as signInRisk
+                                } 
 
-                                # if user or app or IP range is excluded, we invert the test to a -Not
-                                $invertedTest = $user.type -eq "excluded" -or $app.type -eq "excluded" -or $ipRange.type -eq "excluded" -or $devicePlatform.type -eq "excluded"
-                                
-                                if ($conditionalAccessPolicy.grantControls.builtInControls -contains "block") {
-                                    $testName = Create-TestName $invertedTest 'block' $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk
-                                    $MaesterTests += Generate-MaesterTest $invertedTest 'block' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk
-                                    $testsCreatedForThisCAPolicy++
-                                }
+                                foreach ($signInRisk in $allSignInRisks) { # loop over signin risks
 
-                                if ($conditionalAccessPolicy.grantControls.builtInControls -contains "mfa") { # TODO: I think that if the action is 'passwordChange', then 'mfa' is also given as an action. To check. And to check if me must leave this out then...
-                                    $testName = Create-TestName $invertedTest 'mfa' $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk
-                                    $MaesterTests += Generate-MaesterTest $invertedTest 'mfa' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk
-                                    $testsCreatedForThisCAPolicy++
-                                }
+                                    [array]$userActions = $conditionalAccessPolicy.conditions?.authenticationFlows?.transferMethods -split ',' 
 
-                                if ($conditionalAccessPolicy.grantControls.builtInControls -contains "passwordChange") { 
-                                    $testName = Create-TestName $invertedTest 'passwordChange' $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk
-                                    $MaesterTests += Generate-MaesterTest $invertedTest 'passwordChange' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk
-                                    $testsCreatedForThisCAPolicy++
-                                }
+                                    if (-Not $conditionalAccessPolicy.conditions?.authenticationFlows?.transferMethods) {
+                                        ($conditionalAccessPolicy.conditions ??= @{}).authenticationFlows = @{ transferMethods = @('All') } # Add the property 'transferMethods'
+                                    }
 
-                                if ($conditionalAccessPolicy.grantControls.builtInControls -contains "compliantDevice") {
-                                    $testName = Create-TestName $invertedTest 'compliantDevice' $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk
-                                    $MaesterTests += Generate-MaesterTest $invertedTest 'compliantDevice' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk
-                                    $testsCreatedForThisCAPolicy++
-                                }
+                                    foreach ($userAction in $userActions) { # loop over userActions
 
-                                if ($conditionalAccessPolicy.grantControls.builtInControls -contains "domainJoinedDevice") {
-                                    $testName = Create-TestName $invertedTest 'domainJoinedDevice' $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk
-                                    $MaesterTests += Generate-MaesterTest $invertedTest 'domainJoinedDevice' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk
-                                    $testsCreatedForThisCAPolicy++
+
+                                        # if user or app or IP range is excluded, we invert the test to a -Not
+                                        $invertedTest = $user.type -eq "excluded" -or $app.type -eq "excluded" -or $ipRange.type -eq "excluded" -or $devicePlatform.type -eq "excluded"
+                                        
+                                        if ($conditionalAccessPolicy.grantControls.builtInControls -contains "block") {
+                                            $testName = Create-TestName $invertedTest 'block' $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk $signInRisk $userAction
+                                            $MaesterTests += Generate-MaesterTest $invertedTest 'block' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk $signInRisk $userAction
+                                            $testsCreatedForThisCAPolicy++
+                                        }
+
+                                        if ($conditionalAccessPolicy.grantControls.builtInControls -contains "mfa") { # TODO: I think that if the action is 'passwordChange', then 'mfa' is also given as an action. To check. And to check if me must leave this out then...
+                                            $testName = Create-TestName $invertedTest 'mfa' $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk $signInRisk $userAction
+                                            $MaesterTests += Generate-MaesterTest $invertedTest 'mfa' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk $signInRisk $userAction
+                                            $testsCreatedForThisCAPolicy++
+                                        }
+
+                                        if ($conditionalAccessPolicy.grantControls.builtInControls -contains "passwordChange") { 
+                                            $testName = Create-TestName $invertedTest 'passwordChange' $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk $signInRisk $userAction
+                                            $MaesterTests += Generate-MaesterTest $invertedTest 'passwordChange' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk $signInRisk $userAction
+                                            $testsCreatedForThisCAPolicy++
+                                        }
+
+                                        if ($conditionalAccessPolicy.grantControls.builtInControls -contains "compliantDevice") {
+                                            $testName = Create-TestName $invertedTest 'compliantDevice' $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk $signInRisk $userAction
+                                            $MaesterTests += Generate-MaesterTest $invertedTest 'compliantDevice' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk $signInRisk $userAction
+                                            $testsCreatedForThisCAPolicy++
+                                        }
+
+                                        if ($conditionalAccessPolicy.grantControls.builtInControls -contains "domainJoinedDevice") {
+                                            $testName = Create-TestName $invertedTest 'domainJoinedDevice' $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk $signInRisk $userAction
+                                            $MaesterTests += Generate-MaesterTest $invertedTest 'domainJoinedDevice' $testName $conditionalAccessPolicy.id $conditionalAccessPolicy.displayName $user.userID $user.UPN $app.applicationID $app.applicationName $clientApp $ipRange.IPrange $devicePlatform.OS $userRisk $signInRisk $userAction
+                                            $testsCreatedForThisCAPolicy++
+                                        }
+                                    }
                                 }
                             }
                         }

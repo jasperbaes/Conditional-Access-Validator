@@ -132,7 +132,7 @@ $MaesterTests = Create-Simulations $conditionalAccessPolicies
 # MAESTER CODE GENERATOR #
 ##########################
 
-$templateMaester = Create-MaesterCode $MaesterTests
+$templateMaester = Create-MaesterCode $MaesterTests $IncludeReportOnly
 
 ##############
 # JSON CRACK #
@@ -468,6 +468,14 @@ $template += @"
                             <tr>
                                 <td>User risk</td>
                                 <td>$($MaesterTest.userRisk)</td>
+                            </tr>
+                            <tr>
+                                <td>Signin risk</td>
+                                <td>$($MaesterTest.signInRisk)</td>
+                            </tr>
+                             <tr>
+                                <td>User action</td>
+                                <td>$($MaesterTest.userAction)</td>
                             </tr>
                         </tbody>
                     </table>

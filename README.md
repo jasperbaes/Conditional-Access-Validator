@@ -56,7 +56,16 @@ Connect-MgGraph
 .\run.ps1
 
 # OR if you want to include CA policies that are in 'report-only' mode
+Connect-MgGraph
 .\run.ps1 -IncludeReportOnly
+
+# OR if you want to skip the User Impact Matrix
+Connect-MgGraph
+.\run.ps1 -SkipUserImpactMatrix
+
+# OR if you want to limit the User Impact Matrix to the first 10 users
+Connect-MgGraph
+.\run.ps1 -UserImpactMatrixLimit 10
 ```
 
 TODO: usage video (timestamp)
@@ -66,28 +75,24 @@ TODO: usage video (timestamp)
 For each Conditional Access policy, a test is created based on the configured properties in the CA policy itself. Some hard-coded rules:
 
 - Conditional Access policies are imported sorted on their name.
-- if the CA policy is scoped on `'All users'`, we limit the scope to 5 random users. These accounts are indicated with `'(random)'` after their UPN
-- if the CA policy is scoped on a group (included or excluded), we limit the scope to 5 random users of that group. These accounts are indicated with `'(random)'` after their UPN
-- if the CA policy is scoped on `'All guets'`, we limit the scope to 2 random guests. These accounts are indicated with `'(random)'` after their UPN
-- if the CA policy is scoped on `'All resources'` cloud apps, we limit the scope to `Office 365 Exchange Online`, `Office 365 SharePoint Online` and `Office 365 Portal`
-- if the CA policy is scoped on `Office365` cloud apps, we limit the scope to `Office 365 Exchange Online`, `Office 365 SharePoint Online` and `Office 365 Portal`
-- if the CA policy is scoped on more than 3 cloud apps, we limit the scope to the first 3 applications
-- if the CA policy is scope on a Named Location, we add tests for each IP range of the Named Location
-- if the CA policy is scope on a Named Location, the country of the test will always be `'FR'` (France)
+- If the CA policy is scoped on `'All users'`, we limit the scope to 5 random users. These accounts are indicated with `'(random)'` after their UPN
+- If the CA policy is scoped on a group (included or excluded), we limit the scope to 5 random users of that group. These accounts are indicated with `'(random)'` after their UPN
+- If the CA policy is scoped on `'All guests'`, we limit the scope to 2 random guests. These accounts are indicated with `'(random)'` after their UPN
+- If the CA policy is scoped on `'All resources'` cloud apps, we limit the scope to `Office 365 Exchange Online`, `Office 365 SharePoint Online` and `Office 365 Portal`
+- If the CA policy is scoped on `Office365` cloud apps, we limit the scope to `Office 365 Exchange Online`, `Office 365 SharePoint Online` and `Office 365 Portal`
+- If the CA policy is scoped on more than 3 cloud apps, we limit the scope to the first 3 applications
+- If the CA policy is scope on a Named Location, we add tests for each IP range of the Named Location
+- If the CA policy is scope on a Named Location, the country of the test will always be `'FR'` (France)
 
-# 🚧 Current limitations
-- sign-in risk is not supported   
-- insider risk is not supported
-- user principal risk is not supported
-- device properties are not supported
-- session controls are not supported
-- excluded guest users are not supported, only included guests are supported
-- guest types are not supported. In each case, 2 random guests are chosen for the test.
+# 🚧 Current limitations  
+- Insider risk is not supported yet
+- User principal risk is not supported yet
+- Device properties are not supported yet
+- Session controls are not supported yet
+- Directory roles are not supported by Maester
+- Excluded guest users are not supported, only included guests are supported
+- Guest types are not supported by Maester. In each case, 2 random guests are chosen for the test.
 - JSON Crack is integrated to visualize the flow chart. JSON Crack has a size limitation in their free plan.
-
-# 📞 Contact
-
-Jasper Baes (https://www.linkedin.com/in/jasper-baes)
 
 Discovered a bug or do you have an improvement? Create an <a href="https://github.com/jasperbaes/Conditional-Access-Validator/issues">issue</a>.
 
@@ -99,13 +104,19 @@ Release version numbers: YEAR.WEEK
   - initial release (preview)
 
 # 🏁 Roadmap
-- Fix: add a check so random chosen users are not excluded from the CA policy
+- Simulations
+  - Fix: add a check so random chosen users are not excluded from the CA policy
+  - Add Insider risk and User Principal risk
+  - Add device properties
+  - Add other access controls
+  - Add session controls
+- try catches
 - Add search field and filters to HTML
-- Add Sign-in risk, Insider risk and User Principal risk
-- Add device properties
-- Add other access controls
-- Add session controls
-- Create tree: add try catch
+- Persona report
+  - Hide groups that are empty
+- Advanced Hunting
+  - Show applications that can be scoped to an IP range (e.g. https://www.jbaes.be/posts/cloud-apps-ip-allowlisting)
+  - ...
 
 # 📜 License
 
