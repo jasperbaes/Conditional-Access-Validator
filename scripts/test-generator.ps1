@@ -266,17 +266,21 @@ function Get-CAPApplications {
     foreach ($appID in $includeApplications) {
         if ($appID -ne "All" -and $appID -ne "Office365") {
             if ($addedCount -lt $maxApplications) {
-                $allApplications += @{
-                    applicationID = $appID
-                    applicationName = Get-AppNamebyID $appID
-                    type = "included"
+                $appName = Get-AppNamebyID $appID
+                if ($appName -ne "N/A" -and $appName -ne "None") {
+                    $allApplications += @{
+                        applicationID = $appID
+                        applicationName = $appName
+                        type = "included"
+                    }
+                    $addedCount++
                 }
-                $addedCount++
             } else {
                 break
             }
         }
     }
+    
 
     # add the first 3 excluded applications
     $maxApplications = 3
@@ -285,12 +289,15 @@ function Get-CAPApplications {
     foreach ($appID in $excludeApplications) { 
         if ($appID -ne "All" -and $appID -ne "Office365") {
             if ($addedCount -lt $maxApplications) {
-                $allApplications += @{
-                    applicationID = $appID
-                    applicationName = Get-AppNamebyID $appID
-                    type = "excluded"
+                $appName = Get-AppNamebyID $appID
+                if ($appName -ne "N/A" -and $appName -ne "None") {
+                    $allApplications += @{
+                        applicationID = $appID
+                        applicationName = $appName
+                        type = "excluded"
+                    }
+                    $addedCount++
                 }
-                $addedCount++
             } else {
                 break
             }
@@ -412,19 +419,32 @@ function Get-devicePlatforms {
     
     $allPlatforms = @() # create empty array
 
-    # if the CA policy has no included or excluded location set, then create an 'empty' device list. This will not be added to the test itself. This object is required so it continues in the nested forEach loop
-    if ($includedDevicePlatforms.count -eq 0 -or $excludedDevicePlatforms.count -eq 0) {
+    # if the CA policy has no included device platforms set, then create an 'empty' device list. This will not be added to the test itself. This object is required so it continues in the nested forEach loop
+    if ($includedDevicePlatforms.count -eq 0) {
         $allPlatforms += @{
             OS = 'All'
             type = "included" # it does not matter if this is 'included' or 'excluded'. We will filter these out when generating the Maester test code
         }
     }
 
-    # Loop over all includedDevicePlatforms
+    # Loop over all includedDevicePlatforms and add as 'included'
     foreach ($devicePlatform in $includedDevicePlatforms) {
         $allPlatforms += @{
             OS = $devicePlatform
             type = "included"
+        }
+    }
+
+    # if a device platform is included in the CA policy, then add every other device as 'excluded' This is required because if no device would be specified, the policy would always be triggered
+    $allPossiblePlatforms = @('Android', 'iOS', 'windows', 'macOS', 'linux')
+    if ($includedDevicePlatforms.count -ge 1) {
+        foreach ($platform in $allPossiblePlatforms) {
+            if (-not $includedDevicePlatforms -contains $platform) {
+                $allPlatforms += @{
+                    OS = $platform
+                    type = "excluded"
+                }
+            }
         }
     }
 

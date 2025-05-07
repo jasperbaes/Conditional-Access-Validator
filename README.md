@@ -114,6 +114,7 @@ Release version numbers: YEAR.WEEK
 - Add search field and filters to HTML
 - Persona report
   - Hide groups that are empty
+  - Create hierarchy chart of nested groups
 - Advanced Hunting
   - Show applications that can be scoped to an IP range (e.g. https://www.jbaes.be/posts/cloud-apps-ip-allowlisting)
   - ...

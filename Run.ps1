@@ -59,6 +59,8 @@ if (-not (Get-Module -ListAvailable -Name Microsoft.Graph.Authentication)) {
     Exit
 } 
 
+Import-Module Microsoft.Graph.Identity.DirectoryManagement -Force
+
 # Connect to Microsoft Graph
 Write-OutputInfo "Connecting to Microsoft Graph"
 

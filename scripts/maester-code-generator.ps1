@@ -58,11 +58,12 @@ function Create-MaesterCode {
             $MaesterTest.userAction = '/' # set als '/' for the HTML report
         }
 
-        $templateMaester += "`n"
-
         if (-Not $IncludeReportOnly) {
-            $templateMaester +=  "`t`t`$policiesEnforced = `$policiesEnforced | Where-Object { `$_.state -eq 'enabled' } `n"
+            $templateMaester += "`n"
+            $templateMaester +=  "`t`t`$policiesEnforced = `$policiesEnforced | Where-Object { `$_.state -eq 'enabled' } "   
         }
+
+        $templateMaester += "`n"
 
         if ($MaesterTest.inverted -eq $true) {
             $templateMaester += "`t`t`$policiesEnforced.grantControls.builtInControls | Should -Not -Contain `'$($MaesterTest.expectedControl)`' `n"
