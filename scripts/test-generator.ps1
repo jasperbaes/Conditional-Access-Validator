@@ -478,7 +478,12 @@ function Create-TestName {
         $userAction
     )
 
-    $testTitle = "$expectedControl for $UPN on $appName"
+    if ($inverted) {
+        $testTitle = "no $expectedControl for $UPN on $appName"
+    } else {
+        $testTitle = "$expectedControl for $UPN on $appName"
+    }
+    
 
     if ($clientApp -ne "All") { # only add this property to the test title if it is set in the test
         if ($clientApp -eq 'other') {

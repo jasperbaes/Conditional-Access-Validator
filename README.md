@@ -3,7 +3,7 @@
   <a href="https://jbaes.be/CAB">
     <img src="./assets/logo.png" alt="Logo" height="80">
   </a>
-  <h3 align="center">Conditional Access Validator</h3>
+  <h3 align="center">Conditional Access Validator <small>(preview)</small></h3>
   <p align="center"> 
     By <a href="https://www.linkedin.com/in/jasper-baes">Jasper Baes</a>
     <br />
@@ -12,16 +12,18 @@
      <a href="https://github.com/jasperbaes/Conditional-Access-Validator#-usage">Usage</a>
     ·
     <a href="https://github.com/jasperbaes/Conditional-Access-Validator/issues">Report Bug</a>
-    ·
-     <a href="https://www.jbaes.be/CAB">Conditional Access Blueprint</a>
   </p>
 </p>
 
-The Conditional Access Test Validator is part of tool #4 in the <a href="https://www.jbaes.be/CAB">Conditional Access Blueprint</a>, a CA framework.
+<p align="center">The Conditional Access Validator is part the CA framework: the <a href="https://www.jbaes.be/CAB">Conditional Access Blueprint</a></p>
 
 # 🚀 About
 
-The Conditional Access Validator is a PowerShell tool that automatically generates <a href="https://maester.dev">Maester.dev</a> test for Conditional access, based on your current Conditional Access setup. <a href="https://maester.dev">Maester.dev</a> is a Microsoft Security test automation framework.
+The Conditional Access Validator is a PowerShell tool that automatically generates:
+- <a href="https://maester.dev">Maester.dev</a> test for Conditional access
+- a flow chart of Conditional Access
+- the Conditional Access Matrix (a CSV with the included/excluded state per user per CA policy)
+- Conditional Access Persona Report
 
 TODO: GIF van example report
 
@@ -72,8 +74,9 @@ TODO: usage video (timestamp)
 
 # 💡 Hardcoded rules
 
-For each Conditional Access policy, a test is created based on the configured properties in the CA policy itself. Some hard-coded rules:
+For each Conditional Access policy, a test is created based on the configured properties in the CA policy itself.
 
+Some hard-coded rules:
 - Conditional Access policies are imported sorted on their name.
 - If the CA policy is scoped on `'All users'`, we limit the scope to 5 random users. These accounts are indicated with `'(random)'` after their UPN
 - If the CA policy is scoped on a group (included or excluded), we limit the scope to 5 random users of that group. These accounts are indicated with `'(random)'` after their UPN
@@ -100,7 +103,7 @@ Discovered a bug or do you have an improvement? Create an <a href="https://githu
 
 Release version numbers: YEAR.WEEK
 
-- 2025.18
+- 2025.21
   - initial release (preview)
 
 # 🏁 Roadmap
@@ -110,14 +113,16 @@ Release version numbers: YEAR.WEEK
   - Add device properties
   - Add other access controls
   - Add session controls
-- try catches
-- Add search field and filters to HTML
+- Add error handeling
+- Add search field and filters to HTML (CA policy, CA state)
 - Persona report
   - Hide groups that are empty
   - Create hierarchy chart of nested groups
 - Advanced Hunting
   - Show applications that can be scoped to an IP range (e.g. https://www.jbaes.be/posts/cloud-apps-ip-allowlisting)
   - ...
+
+Want to contribute? Fork this repository and create a <a href="https://github.com/jasperbaes/Conditional-Access-Validator/pulls">Pull request</a>.
 
 # 📜 License
 

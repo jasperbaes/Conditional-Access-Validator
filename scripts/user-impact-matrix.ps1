@@ -130,27 +130,3 @@ function Check-Arrays {
 
     return $false
 }
-
-function Get-AllPagesFromMicrosoftGraph {
-    param (
-        $URL
-    )
-    
-    $allPages = @()
-
-    $aadUsers = Invoke-MgGraphRequest -Method GET $URL
-    $allPages += $aadUsers.value
-
-    if ($aadUsers.'@odata.nextLink') {
-        do {
-
-            $aadUsers = Invoke-MgGraphRequest -Method GET $aadUsers.'@odata.nextLink'
-            $allPages += $aadUsers.value
-
-        } until (
-            !$aadUsers.'@odata.nextLink'
-        )    
-    }
-
-    return $allPages
-}

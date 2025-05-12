@@ -13,6 +13,7 @@ param (
 . ([System.IO.Path]::Combine($PSScriptRoot, 'scripts/flow-diagram.ps1'))
 . ([System.IO.Path]::Combine($PSScriptRoot, 'scripts/user-impact-matrix.ps1'))
 . ([System.IO.Path]::Combine($PSScriptRoot, 'scripts/persona-report.ps1'))
+. ([System.IO.Path]::Combine($PSScriptRoot, 'scripts/nested-groups.ps1'))
 
 # Get current version
 $jsonContent = Get-Content -Path "./assets/latestVersion.json" -Raw | ConvertFrom-Json
@@ -167,6 +168,12 @@ if ($SkipUserImpactMatrix) {
 ##################
 
 $PersonaReport = Get-PersonaReport $conditionalAccessPolicies
+
+#################
+# NESTED GROUPS #
+#################
+
+# Get-NestedGroups
 
 ##################
 
