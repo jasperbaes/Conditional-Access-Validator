@@ -25,7 +25,7 @@ The Conditional Access Validator is a PowerShell tool that automatically generat
 - the Conditional Access Matrix (a CSV with the included/excluded state per user per CA policy)
 - Conditional Access Persona Report
 
-TODO: GIF van example report
+[![Demo](https://img.youtube.com/vi/2vWtJ_D5Pd4/0.jpg)](https://www.youtube.com/watch?v=2vWtJ_D5Pd4)
 
 # 🛠️ Installation
 
@@ -115,6 +115,8 @@ Release version numbers: YEAR.WEEK
   - Add session controls
 - Add error handeling
 - Add search field and filters to HTML (CA policy, CA state)
+- Impact Matrix
+  - add user impact changes in past 30 days audit logs
 - Persona report
   - Hide groups that are empty
   - Create hierarchy chart of nested groups
