@@ -19,25 +19,23 @@
 
 # 🚀 About
 
-The Conditional Access Validator is a PowerShell tool that automatically generates:
+The Conditional Access Validator is a PowerShell tool that automatically generates a HTML report with:
 - <a href="https://maester.dev">Maester.dev</a> test for Conditional access
 - a flow chart of Conditional Access
 - the Conditional Access Matrix (a CSV with the included/excluded state per user per CA policy)
 - Conditional Access Persona Report
 
-[![Demo](https://img.youtube.com/vi/2vWtJ_D5Pd4/0.jpg)](https://www.youtube.com/watch?v=2vWtJ_D5Pd4)
+<img src="./assets/demo.png" alt="Demo" width="60%">
 
 # 🛠️ Installation
-
-TODO: installation video
 
 ```powershell
 git clone https://github.com/jasperbaes/Conditional-Access-Validator
 cd Conditional-Access-Validator
-Install-Module Microsoft.Graph.Authentication
+Install-Module Microsoft.Graph
 ```
 
-Authenticating can be done with the `Connect-MgGraph` command or with an App Registration. To use an App Registration, create the file `settings.json` in the root of the project and set the credentials in following JSON object:
+Authenticating can be done with the `Connect-MgGraph` command ('Policy.Read.All', 'Directory.Read.All', 'Application.Read.All') or with an App Registration. To use an App Registration, create the file `settings.json` in the root of the project and set the credentials in following JSON object:
 
 ```json
 {
@@ -46,6 +44,8 @@ Authenticating can be done with the `Connect-MgGraph` command or with an App Reg
     "clientSecret": ""
 }
 ```
+
+[![Installation video](https://img.youtube.com/vi/AkW3UMU6v3Q/0.jpg)](https://www.youtube.com/watch?v=AkW3UMU6v3Q&t=173)
 
 # 💻 Usage
 
@@ -70,7 +70,7 @@ Connect-MgGraph
 .\run.ps1 -UserImpactMatrixLimit 10
 ```
 
-TODO: usage video (timestamp)
+[![Usage video](https://img.youtube.com/vi/AkW3UMU6v3Q/0.jpg)](https://www.youtube.com/watch?v=AkW3UMU6v3Q&t=182)
 
 # 💡 Hardcoded rules
 
@@ -120,19 +120,29 @@ Release version numbers: YEAR.WEEK
 - Persona report
   - Hide groups that are empty
   - Create hierarchy chart of nested groups
+- Conditional Access documentations
+- Conditional Access hygiene tests  
+- Refactor report to API approach
 - Advanced Hunting
   - Show applications that can be scoped to an IP range (e.g. https://www.jbaes.be/posts/cloud-apps-ip-allowlisting)
   - ...
 
-Want to contribute? Fork this repository and create a <a href="https://github.com/jasperbaes/Conditional-Access-Validator/pulls">Pull request</a>.
+Want to contribute? Fork this repository and create a <a href="https://github.com/jasperbaes/Conditional-Access-Validator/pulls">Pull request</a>. The Conditional Access Validator architecture is modular.
 
 # 📜 License
 
-Please be aware that this project is only allowed for use by organizations seeking financial gain, on 2 conditions:
-- this is communicated to me over LinkedIn
-- the header and footer of the HTML report is unchanged. Colors can be changed. Other items can be added.
+Shield: [![CC BY-NC-SA 4.0][cc-by-nc-sa-shield]][cc-by-nc-sa]
 
-Thank you for respecting these usage terms and contributing to a fair and ethical software community. 
+This work is licensed under a
+[Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License][cc-by-nc-sa].
+
+[![CC BY-NC-SA 4.0][cc-by-nc-sa-image]][cc-by-nc-sa]
+
+[cc-by-nc-sa]: http://creativecommons.org/licenses/by-nc-sa/4.0/
+[cc-by-nc-sa-image]: https://licensebuttons.net/l/by-nc-sa/4.0/88x31.png
+[cc-by-nc-sa-shield]: https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg
+
+Thank you for respecting these usage terms and contributing to a fair and ethical software community. Commercial use is allowed only with my prior written permission. Please contact me via LinkedIn.
 
 Jasper Baes (https://www.linkedin.com/in/jasper-baes)
 

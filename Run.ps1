@@ -47,11 +47,20 @@ try {
 
 # Import settings
 Write-OutputInfo "Importing settings"
-$jsonContent = Get-Content -Path "settings.json" -Raw | ConvertFrom-Json
 
-$Global:TENANTID = $jsonContent.tenantID
-$Global:CLIENTID = $jsonContent.clientID
-$Global:CLIENTSECRET = $jsonContent.clientSecret
+try {
+    if (Test-Path -Path "settings.json") {
+        $jsonContent = Get-Content -Path "settings.json" -Raw | ConvertFrom-Json
+
+        if ($jsonContent.tenantID -and $jsonContent.clientID -and $jsonContent.clientSecret) {
+            $Global:TENANTID = $jsonContent.tenantID
+            $Global:CLIENTID = $jsonContent.clientID
+            $Global:CLIENTSECRET = $jsonContent.clientSecret
+        } 
+    }
+} catch {
+    Write-OutputError "An error occurred while importing settings: $_"
+}
 
 # Check if Microsoft.Graph.Authentication module is installed
 if (-not (Get-Module -ListAvailable -Name Microsoft.Graph.Authentication)) {
