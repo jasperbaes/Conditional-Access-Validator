@@ -72,7 +72,7 @@ function Get-GroupNameAndCount {
         [string]$groupID
     )
 
-    $group = Invoke-MtGraphRequest -RelativeUri ('groups/' + $groupID + '?$select=displayName&$expand=members')
+    $group = Invoke-MgGraphRequest -RelativeUri ('groups/' + $groupID + '?$select=displayName&$expand=members')
    
     return @{
         groupName = $group.displayName
