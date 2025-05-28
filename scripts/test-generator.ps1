@@ -1,21 +1,32 @@
 # Import shared.ps1
 . ([System.IO.Path]::Combine($PSScriptRoot, 'shared.ps1'))
 
-# Returns the UPN by a given user ID
+# Add global caches for user and app lookups
+$global:UserUPNCache = @{}
+$global:AppNameCache = @{}
+
 function Get-UPNbyID {
     param (
-        [string]$userID
+        [string]$userID,
+        [hashtable]$userCache = $null
     )
+
+    if (-not $userCache) { $userCache = $global:UserUPNCache }
+    if ($userCache.ContainsKey($userID)) {
+        return $userCache[$userID]
+    }
 
     try {
         $user = Invoke-MgGraphRequest -Method GET ('https://graph.microsoft.com/v1.0/users/' + $userID + '?$select=userPrincipalName')
-        
         if ($user) {
+            $userCache[$userID] = $user.userPrincipalName
             return $user.userPrincipalName
         } else {
+            $userCache[$userID] = "N/A"
             return "N/A"
         }
     } catch {
+        $userCache[$userID] = "N/A"
         return "N/A"
     }
 }
@@ -84,14 +95,55 @@ function Get-RandomGuestsOfTheTenant {
     } catch {}
 }
 
+# Returns the UPN by a given user ID
+function Get-AppNamebyID {
+    param (
+        [string]$appID,
+        [hashtable]$appCache = $null
+    )
+
+    if (-not $appCache) { $appCache = $global:AppNameCache }
+    if ($appCache.ContainsKey($appID)) {
+        return $appCache[$appID]
+    }
+
+    try {
+        # Try if the application is a Service Principal
+        $app = Invoke-MgGraphRequest -Method GET ('https://graph.microsoft.com/v1.0/servicePrincipals/' + $appID)
+        
+        if ($app) {
+            $appCache[$appID] = $app.displayName
+            return $app.displayName
+        }
+    } catch {
+        try {
+            # When not a Service Principal, try if the application is a application template
+            $app2 = Invoke-MgGraphRequest -Method GET ('https://graph.microsoft.com/v1.0/applicationTemplates/' + $appID)
+            $appCache[$appID] = $app2.displayName
+            return $app2.displayName
+            
+        } catch {
+            try {
+                # When not a Service Principal and not a template, try if the application is an app registration
+                $app3 = Invoke-MgGraphRequest -Method GET ('https://graph.microsoft.com/v1.0/applications?$filter=appId eq ' + "'" + $appID + "'")
+                $appCache[$appID] = $app3.value[0].displayName
+                return $app3.value[0].displayName
+            } catch {
+                $appCache[$appID] = "N/A"
+                return "N/A"
+            }
+        }
+    }
+}
+
 function Get-CAPUsers {
     param (
         [Parameter(Mandatory=$true)]
-        $CAUsersObject
+        $CAUsersObject,
+        [hashtable]$userCache = $null
     )
-
-    $allUsers = @() # create empty array
-
+    if (-not $userCache) { $userCache = $global:UserUPNCache }
+    $allUsers = @()
     [array]$includeUsers = $CAUsersObject.includeUsers
     [array]$excludeUsers = $CAUsersObject.excludeUsers
     [array]$includeGroups = $CAUsersObject.includeGroups
@@ -111,7 +163,7 @@ function Get-CAPUsers {
                 }
             }
         } else {
-            $UPN = Get-UPNbyID $userID
+            $UPN = Get-UPNbyID $userID $userCache
             if ($UPN -ne "N/A") {
                 $allUsers += @{
                     userID = $userID
@@ -125,11 +177,11 @@ function Get-CAPUsers {
     # add all excluded users
     foreach ($userID in $excludeUsers) {  
         if ($userID -ne "All") {
-            $UPN = Get-UPNbyID $userID
+            $UPN = Get-UPNbyID $userID $userCache
             if ($UPN -ne "N/A") {
                 $allUsers += @{
                     userID = $userID
-                    UPN = Get-UPNbyID $userID
+                    UPN = $UPN
                     type = "excluded"
                 }
             }
@@ -139,7 +191,6 @@ function Get-CAPUsers {
     # For an included group, add 5 random users
     foreach ($groupID in $includeGroups) {
         [array]$randomUsersOfTheTenant = Get-RandomUsersOfTheTenant $groupID $excludeUsers $excludeGroups
-
         foreach ($randomUser in $randomUsersOfTheTenant) {
             $allUsers += @{
                 userID = $randomUser.userID
@@ -152,7 +203,6 @@ function Get-CAPUsers {
     # For an included group, add 5 random users
     foreach ($groupID in $excludeGroups) {
         [array]$randomUsersOfTheTenant = Get-RandomUsersOfTheTenant $groupID @() @()
-
         foreach ($randomUser in $randomUsersOfTheTenant) {
             $allUsers += @{
                 userID = $randomUser.userID
@@ -165,7 +215,6 @@ function Get-CAPUsers {
     # If scope to guests, add 2 random guests
     if ($CAUsersObject.includeGuestsOrExternalUsers) {
         [array]$randomGuestsOfTheTenant = Get-RandomGuestsOfTheTenant
-
         foreach ($randomGuest in $randomGuestsOfTheTenant) {
             $allUsers += @{
                 userID = $randomGuest.userID
@@ -173,51 +222,19 @@ function Get-CAPUsers {
                 type = "included"
             }
         }
-        
     }
 
     return $allUsers
 }
 
-# Returns the UPN by a given user ID
-function Get-AppNamebyID {
-    param (
-        [string]$appID
-    )
-
-    try {
-        # Try if the application is a Service Principal
-        $app = Invoke-MgGraphRequest -Method GET ('https://graph.microsoft.com/v1.0/servicePrincipals/' + $appID)
-        
-        if ($app) {
-            return $app.displayName
-        }
-    } catch {
-        try {
-            # When not a Service Principal, try if the application is a application template
-            $app2 = Invoke-MgGraphRequest -Method GET ('https://graph.microsoft.com/v1.0/applicationTemplates/' + $appID)
-            return $app2.displayName
-            
-        } catch {
-            try {
-                # When not a Service Principal and not a template, try if the application is an app registration
-                $app3 = Invoke-MgGraphRequest -Method GET ('https://graph.microsoft.com/v1.0/applications?$filter=appId eq ' + "'" + $appID + "'")
-                return $app3.value[0].displayName
-            } catch {            
-                return "N/A"
-            }
-        }
-    }
-}
-
 function Get-CAPApplications {
     param (
         [Parameter(Mandatory=$true)]
-        $CAApplicationsObject
+        $CAApplicationsObject,
+        [hashtable]$appCache = $null
     )
-
-    $allApplications = @() # create empty array
-
+    if (-not $appCache) { $appCache = $global:AppNameCache }
+    $allApplications = @()
     [array]$includeApplications = $CAApplicationsObject.includeApplications
     [array]$excludeApplications = $CAApplicationsObject.excludeApplications
 
@@ -266,7 +283,7 @@ function Get-CAPApplications {
     foreach ($appID in $includeApplications) {
         if ($appID -ne "All" -and $appID -ne "Office365") {
             if ($addedCount -lt $maxApplications) {
-                $appName = Get-AppNamebyID $appID
+                $appName = Get-AppNamebyID $appID $appCache
                 if ($appName -ne "N/A" -and $appName -ne "None") {
                     $allApplications += @{
                         applicationID = $appID
@@ -289,7 +306,7 @@ function Get-CAPApplications {
     foreach ($appID in $excludeApplications) { 
         if ($appID -ne "All" -and $appID -ne "Office365") {
             if ($addedCount -lt $maxApplications) {
-                $appName = Get-AppNamebyID $appID
+                $appName = Get-AppNamebyID $appID $appCache
                 if ($appName -ne "N/A" -and $appName -ne "None") {
                     $allApplications += @{
                         applicationID = $appID
@@ -524,8 +541,12 @@ function Create-Simulations {
         
     Write-OutputInfo "Generating Maester tests"
 
+    # Use local caches for this run
+    $userCache = @{}
+    $appCache = @{}
+
     [array]$MaesterTests = @() # Create empty array
-    $i = 0
+    $i = 1
 
     # Loop over all discovered Conditional Access Policies
     foreach ($conditionalAccessPolicy in $conditionalAccessPolicies) {
@@ -535,9 +556,9 @@ function Create-Simulations {
 
         $testsCreatedForThisCAPolicy = 0
 
-        # Get included and excluded users for tests
-        [array]$allUsers = Get-CAPUsers $conditionalAccessPolicy.conditions.users
-        [array]$allApplications = Get-CAPApplications $conditionalAccessPolicy.conditions.applications
+        # Get included and excluded users for tests (with cache)
+        [array]$allUsers = Get-CAPUsers $conditionalAccessPolicy.conditions.users $userCache
+        [array]$allApplications = Get-CAPApplications $conditionalAccessPolicy.conditions.applications $appCache
         
         foreach ($user in $allUsers) { # loop over all users used in tests
             # Write-Output $user.UPN
@@ -633,10 +654,11 @@ function Create-Simulations {
         }
 
         $i++
-        Write-OutputSuccess "$testsCreatedForThisCAPolicy tests generated for '$($conditionalAccessPolicy.displayName)' ($($conditionalAccessPolicy.id))"
+        Write-OutputSuccess "$testsCreatedForThisCAPolicy tests generated for '$($conditionalAccessPolicy.displayName)'"
         # break # Uncomment for debugging purposes
     }
 
+    Write-Progress -Completed
     Write-OutputSuccess "Generated $($MaesterTests.count) Maester tests"
     # Write-Output $MaesterTests | ConvertTo-JSON
 

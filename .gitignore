@@ -1,3 +1,4 @@
 *.html
+*.csv
 !example.html
 settings.json

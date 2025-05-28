@@ -25,7 +25,10 @@ The Conditional Access Validator is a PowerShell tool that automatically generat
 - the Conditional Access Matrix (a CSV with the included/excluded state per user per CA policy)
 - Conditional Access Persona Report
 
-<img src="./assets/demo.png" alt="Demo" width="60%">
+<img src="./assets/demo.png" alt="Demo" width="75%">
+
+
+<a href="https://www.jbaes.be/CAF/Conditional-Access-Validator-example.html">Open example report</a>
 
 # 🛠️ Installation
 
@@ -103,6 +106,10 @@ Discovered a bug or do you have an improvement? Create an <a href="https://githu
 
 Release version numbers: YEAR.WEEK
 
+- 2025.22
+  - add button to download CA policies
+  - add local caching
+  - bug fix ([PowerBugi](https://github.com/jasperbaes/Conditional-Access-Validator/pull/1/files))
 - 2025.21
   - initial release (preview)
 

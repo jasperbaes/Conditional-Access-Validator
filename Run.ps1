@@ -113,8 +113,10 @@ $Global:ORGANIZATIONNAME = (Get-MgOrganization).DisplayName
 
 # Fetch Conditional Access policies
 Write-OutputInfo "Fetching Conditional Access policies"
-$conditionalAccessPolicies = Invoke-MgGraphRequest -Method GET 'https://graph.microsoft.com/v1.0/policies/conditionalAccessPolicies?$orderby=displayName'
-$conditionalAccessPolicies = $conditionalAccessPolicies.value | Select id, displayName, state, conditions, grantControls
+$conditionalAccessPoliciesRaw = Invoke-MgGraphRequest -Method GET 'https://graph.microsoft.com/v1.0/policies/conditionalAccessPolicies?$orderby=displayName'
+$conditionalAccessPolicies = $conditionalAccessPoliciesRaw.value | Select id, displayName, state, conditions, grantControls
+$conditionalAccessPoliciesRaw = $conditionalAccessPoliciesRaw | ConvertTo-Json -Depth 99
+
 
 if ($conditionalAccessPolicies.count -gt 0) {
     Write-OutputSuccess "$($conditionalAccessPolicies.count) Conditional Access policies detected"
@@ -378,7 +380,6 @@ $template += @"
         </li>
     </ul>
 
-
     <div class="tab-content" id="myTabContent">
       <div class="tab-pane fade show active" id="code-tab-pane" role="tabpanel" aria-labelledby="code-tab" tabindex="0">
             <div class="position-relative">
@@ -525,6 +526,11 @@ $template += @"
                 Download full CSV ($($userImpactMatrix.count) users)
             </a>
 
+            <button class="btn bg-orange text-white rounded mt-2" id="downloadPoliciesJsonBtn">
+                    <i class="bi bi-download me-2 ms-1"></i>
+                    Download all Conditional Access policies (JSON)
+            </button>
+
             <table class="small table-matrix">
                 <thead>
                     <tr>
@@ -575,7 +581,7 @@ $template += @"
                 <li>Select 'Delimited' and click Next</li>
                 <li>Only select 'Comma' and click Finish</li>
                 <li>Click on any cell with text and click 'Filter' in the 'Data' tab</li>
-                <li><span class="font-bold">Review by filtering</span>1 or multiple columns, or search in columns</li>
+                <li><span class="font-bold">Review by filtering</span> 1 or multiple columns, or search in columns</li>
                 <li>Add Conditional Formatting rules for coloring 'TRUE' and 'FALSE'</li>
             </ol>
         </div>
@@ -643,7 +649,7 @@ foreach ($result in $PersonaReport) {
                 <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill text-white small" style="background-color: #ff9142 !important;">
                     $($excludedGroup.memberCount)
                 </span>
-                <a href="$($usedRemovePersonaURL)" target="_blank"><i class="bi bi-x ms-2 mt-1 color-accent" data-bs-toggle="tooltip" data-bs-title="Remove the Persona '$($includedGroup.groupName)' from the Conditional Access Policy '$($result.policyName)'."></i></a>
+                <a href="$($usedRemovePersonaURL)" target="_blank"><i class="bi bi-x ms-2 mt-1 color-accent" data-bs-toggle="tooltip" data-bs-title="Remove the Persona '$($excludedGroup.groupName)' from the Conditional Access Policy '$($result.policyName)'."></i></a>
             </a>
         </div>
 "@    
@@ -669,7 +675,6 @@ $template += @"
             </button>
             <iframe class="mt-3 rounded" src="https://www.jbaes.be/CAF/CA-flow" width="100%" height="800px"></iframe>
         </div> 
-
     </div>
 "@
 
@@ -753,6 +758,22 @@ $template += @"
                     const iframes = document.querySelectorAll('iframe');
                     iframes.forEach(iframe => {
                         iframe.src = iframe.src;
+                    });
+                }
+
+                // Policy documentation download button
+                const downloadPoliciesJsonBtn = document.getElementById('downloadPoliciesJsonBtn');
+                if (downloadPoliciesJsonBtn) {
+                    downloadPoliciesJsonBtn.addEventListener('click', function() {
+                        // The JSON string is injected below
+                        var policiesJson = JSON.stringify($conditionalAccessPoliciesRaw);
+                        var blob = new Blob([policiesJson], { type: 'application/json' });
+                        var downloadLink = document.createElement('a');
+                        downloadLink.href = URL.createObjectURL(blob);
+                        downloadLink.download = 'ConditionalAccessPolicies.json';
+                        document.body.appendChild(downloadLink);
+                        downloadLink.click();
+                        document.body.removeChild(downloadLink);
                     });
                 }
 

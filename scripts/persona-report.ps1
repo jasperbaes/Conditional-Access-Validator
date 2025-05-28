@@ -5,13 +5,37 @@
 # Persona Report #
 ##################
 
+# Add a global group cache
+$global:GroupInfoCache = @{}
+
+function Get-GroupNameAndCount {
+    param (
+        [string]$groupID,
+        [hashtable]$groupCache = $null
+    )
+    if (-not $groupCache) { $groupCache = $global:GroupInfoCache }
+    if ($groupCache.ContainsKey($groupID)) {
+        return $groupCache[$groupID]
+    }
+    $group = Invoke-MgGraphRequest -Method GET ('https://graph.microsoft.com/v1.0/groups/' + $groupID + '?$select=displayName&$expand=members')
+    $result = @{
+        groupName = $group.displayName
+        memberCount = $group.members.count
+    }
+    $groupCache[$groupID] = $result
+    return $result
+}
+
 function Get-PersonaReport {
     param (
         $conditionalAccessPolicies
     )
     
     $resultsObject = @()
-    $i = 0
+    $i = 1
+
+    # Use a local cache for this run
+    $groupCache = @{}
 
     # Loop over all discovered Conditional Access Policies
     foreach ($conditionalAccessPolicy in $conditionalAccessPolicies) {
@@ -35,7 +59,7 @@ function Get-PersonaReport {
 
         if ($policyIncludedGroups) {
             foreach ($policyIncludedGroup in $policyIncludedGroups) { # loop over groups
-                $groupResults = Get-GroupNameAndCount $policyIncludedGroup # get group name and member count
+                $groupResults = Get-GroupNameAndCount $policyIncludedGroup $groupCache # get group name and member count
                 
                 $conditionalAccessPolicyResultsObject.includedGroups += @{ # add object to array
                     groupID = $policyIncludedGroup
@@ -50,10 +74,10 @@ function Get-PersonaReport {
 
         if ($policyExcludedGroups) {
             foreach ($policyExcludedGroup in $policyExcludedGroups) { # loop over groups
-                $groupResults = Get-GroupNameAndCount $policyExcludedGroup # get group name and member count
+                $groupResults = Get-GroupNameAndCount $policyExcludedGroup $groupCache # get group name and member count
                 
                 $conditionalAccessPolicyResultsObject.excludedGroups += @{ # add object to array
-                    groupID = $policyIncludedGroup
+                    groupID = $policyExcludedGroup
                     groupName = $groupResults.groupName
                     memberCount = $groupResults.memberCount
                 }
@@ -65,17 +89,4 @@ function Get-PersonaReport {
     }
 
     return $resultsObject
-}
-
-function Get-GroupNameAndCount {
-    param (
-        [string]$groupID
-    )
-
-    $group = Invoke-MtGraphRequest -RelativeUri ('groups/' + $groupID + '?$select=displayName&$expand=members')
-   
-    return @{
-        groupName = $group.displayName
-        memberCount = $group.members.count
-    }
 }
