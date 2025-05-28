@@ -3,8 +3,42 @@ param (
     [switch]$SkipUserImpactMatrix,
     [int]$UserImpactMatrixLimit,
     [string]$RemovePersonaURL,
-    [string]$AddPersonaURL
+    [string]$AddPersonaURL,
+    [switch]$Help
 )
+
+if ($Help) {
+    Write-Host @"
+Conditional Access Validator - Help
+
+Usage:
+    .\run.ps1 [options]
+
+Options:
+    -IncludeReportOnly       Include policies enabled for reporting only.
+    -SkipUserImpactMatrix    Skip generation of the User Impact Matrix.
+    -UserImpactMatrixLimit   Limit the number of users in the User Impact Matrix.
+    -RemovePersonaURL        Custom URL for removing personas from policies.
+    -AddPersonaURL           Custom URL for adding personas to policies.
+    -Help                    Show this help message.
+
+Description:
+    This script connects to Microsoft Graph, fetches Conditional Access policies,
+    generates Maester tests, flow charts, user impact matrices, persona reports,
+    and outputs a comprehensive HTML report.
+
+Examples:
+    .\run.ps1
+    .\run.ps1 -IncludeReportOnly
+    .\run.ps1 -UserImpactMatrixLimit 100
+    .\run.ps1 -Help
+
+For more information, visit:
+    https://github.com/jasperbaes/Conditional-Access-Validator
+
+"@
+    exit
+}
 
 # Import scripts
 . ([System.IO.Path]::Combine($PSScriptRoot, 'scripts/shared.ps1'))
