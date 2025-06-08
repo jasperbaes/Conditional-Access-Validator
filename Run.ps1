@@ -409,9 +409,6 @@ $template += @"
         <li class="nav-item" role="presentation">
             <button class="nav-link color-secondary font-bold px-4" id="persona-report-tab" data-bs-toggle="tab" data-bs-target="#persona-report-tab-pane" type="button" role="tab" aria-controls="persona-report-tab-pane" aria-selected="true">Persona Report</button>
         </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link color-secondary font-bold px-4" id="persona-tab" data-bs-toggle="tab" data-bs-target="#persona-tab-pane" type="button" role="tab" aria-controls="persona-tab-pane" aria-selected="true">Decision Tree</button>
-        </li>
     </ul>
 
     <div class="tab-content" id="myTabContent">
