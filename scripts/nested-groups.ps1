@@ -9,89 +9,55 @@ function Get-NestedGroups {
 
     Write-OutputInfo "Generating nested group flow chart"
 
-    $nestedGroups = @{}
-
-    # Get groups with members
+    # Get all groups with their transitive members
     $groupsWithMembers = Get-AllPagesFromMicrosoftGraph 'https://graph.microsoft.com/v1.0/groups?$expand=transitiveMembers'
+
+    # Build a lookup for groupId -> group object
+    $groupLookup = @{}
+    foreach ($g in $groupsWithMembers) {
+        $groupLookup[$g.id] = $g
+    }
+
+    # Find all parent group IDs (groups that have group members)
     $groupsWithMemberGroups = $groupsWithMembers | ForEach-Object {
         $_.transitiveMembers = $_.transitiveMembers | Where-Object { $_.'@odata.type' -eq '#microsoft.graph.group' }
         $_
     } | Where-Object { $_.transitiveMembers.Count -gt 0 }
-
-    # Get all parent group IDs
     $parentGroupIds = $groupsWithMemberGroups | Select-Object -ExpandProperty id
 
-    # Get all child group IDs
+    # Find all child group IDs (groups that are members of other groups)
     $childGroupIds = $groupsWithMembers.transitiveMembers | ForEach-Object {
         $_ | Where-Object { $_.'@odata.type' -eq '#microsoft.graph.group' }
     } | Select-Object -ExpandProperty id
 
-    # Find top-level groups (only in parent list, not in child list)
+    # Top-level groups: parent but not child
     $topLevelGroupIds = $parentGroupIds | Where-Object { $_ -notin $childGroupIds }
+    $topLevelGroups = $groupsWithMembers | Where-Object { $_.id -in $topLevelGroupIds }
 
-    # Get full group objects for these IDs
-    $topLevelGroups = $groupsWithMembers | Where-Object { $_.id -in $topLevelGroupIds } | Select displayName, id, transitiveMembers
-
-    $nestedGroups = [ordered]@{}
-    foreach ($topLevelGroup in $topLevelGroups) {
-        $childGroups = Get-ChildGroups $topLevelGroup.id
-        foreach ($key in $tree.Keys) {
-            if ($null -ne $key -and -not ($nestedGroups.Keys -contains $key)) {
-                $nestedGroups[$key] = $tree[$key]
-            }
-        }
-    }
-
-    exit
-
-    function Get-ChildGroups {
+    # Recursive function to build the nested group tree
+    function Build-NestedGroupTree {
         param (
             [string]$groupId
         )
-    
-        if ($visited.ContainsKey($groupId)) {
-            return $null  # Prevent circular references
-        }
-        $visited[$groupId] = $true
-    
         $group = $groupLookup[$groupId]
-        $childGroups = $group.transitiveMembers | Where-Object { $_.'@odata.type' -eq '#microsoft.graph.group' }
-    
-        # If no child groups, return just the name
-        if (-not $childGroups -or $childGroups.Count -eq 0) {
-            return $group.displayName
+        if (-not $group -or -not $group.transitiveMembers) {
+            return ""
         }
-    
-        # Otherwise, build children recursively
-        $children = [ordered]@{}
-        foreach ($member in $childGroups) {
-            $childTree = Build-NestedGroupTree -groupId $member.id -visited ($visited.Clone())
-            if ($childTree -is [string]) {
-                $children[$childTree] = ""
-            } elseif ($childTree -is [hashtable]) {
-                foreach ($k in $childTree.Keys) {
-                    $children[$k] = $childTree[$k]
-                }
-            }
+        $subGroups = $group.transitiveMembers | Where-Object { $_.'@odata.type' -eq '#microsoft.graph.group' }
+        if ($subGroups.Count -eq 0) {
+            return ""
         }
-    
-        return [ordered]@{ $group.displayName = $children }
-    }
-    
-    
-
-    # Build the full tree starting from top-level groups
-    $nestedGroups = [ordered]@{}
-    foreach ($topLevelGroup in $topLevelGroups) {
-        $tree = Build-NestedGroupTree -groupId $topLevelGroup.id
-        foreach ($key in $tree.Keys) {
-            if ($null -ne $key -and -not ($nestedGroups.Keys -contains $key)) {
-                $nestedGroups[$key] = $tree[$key]
-            }
+        $result = @{}
+        foreach ($subGroup in $subGroups) {
+            $result[$subGroup.displayName] = Build-NestedGroupTree -groupId $subGroup.id
         }
+        return $result
     }
 
-    # Output the nested structure
-    Write-Host ($nestedGroups | ConvertTo-Json -Depth 99)
-    # return $nestedGroups
+    $nestedGroups = @{}
+    foreach ($topGroup in $topLevelGroups) {
+        $nestedGroups[$topGroup.displayName] = Build-NestedGroupTree -groupId $topGroup.id
+    }
+
+    return $nestedGroups
 }

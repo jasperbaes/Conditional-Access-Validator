@@ -106,6 +106,8 @@ Discovered a bug or do you have an improvement? Create an <a href="https://githu
 
 Release version numbers: YEAR.WEEK
 
+- 2025.24
+  - add nested group chart
 - 2025.22
   - add button to download CA policies
   - add local caching
@@ -126,7 +128,6 @@ Release version numbers: YEAR.WEEK
   - add user impact changes in past 30 days audit logs
 - Persona report
   - Hide groups that are empty
-  - Create hierarchy chart of nested groups
 - Conditional Access documentations
 - Conditional Access hygiene tests  
 - Refactor report to API approach

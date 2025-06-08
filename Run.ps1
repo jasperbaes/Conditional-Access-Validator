@@ -3,8 +3,42 @@ param (
     [switch]$SkipUserImpactMatrix,
     [int]$UserImpactMatrixLimit,
     [string]$RemovePersonaURL,
-    [string]$AddPersonaURL
+    [string]$AddPersonaURL,
+    [switch]$Help
 )
+
+if ($Help) {
+    Write-Host @"
+Conditional Access Validator - Help
+
+Usage:
+    .\run.ps1 [options]
+
+Options:
+    -IncludeReportOnly       Include policies enabled for reporting only.
+    -SkipUserImpactMatrix    Skip generation of the User Impact Matrix.
+    -UserImpactMatrixLimit   Limit the number of users in the User Impact Matrix.
+    -RemovePersonaURL        Custom URL for removing personas from policies.
+    -AddPersonaURL           Custom URL for adding personas to policies.
+    -Help                    Show this help message.
+
+Description:
+    This script connects to Microsoft Graph, fetches Conditional Access policies,
+    generates Maester tests, flow charts, user impact matrices, persona reports,
+    and outputs a comprehensive HTML report.
+
+Examples:
+    .\run.ps1
+    .\run.ps1 -IncludeReportOnly
+    .\run.ps1 -UserImpactMatrixLimit 100
+    .\run.ps1 -Help
+
+For more information, visit:
+    https://github.com/jasperbaes/Conditional-Access-Validator
+
+"@
+    exit
+}
 
 # Import scripts
 . ([System.IO.Path]::Combine($PSScriptRoot, 'scripts/shared.ps1'))
@@ -157,7 +191,6 @@ $CAJSON = Get-ConditionalAccessFlowChart $MaesterTests
 $filenameTemplate = "$((Get-Date -Format 'yyyyMMddHHmm'))-$($ORGANIZATIONNAME)-ConditionalAccessMaesterTests"
 # $CAJSON | ConvertTo-Json -Depth 99 # Uncomment for debugging purposes
 $CAjsonRaw = $CAJSON | ConvertTo-Json -Depth 99 # used in JSON Crack
-Write-OutputSuccess "Generated flow chart"
 
 ######################
 # User Impact Matrix #
@@ -184,7 +217,8 @@ $PersonaReport = Get-PersonaReport $conditionalAccessPolicies
 # NESTED GROUPS #
 #################
 
-# Get-NestedGroups
+$NestedGroups = Get-NestedGroups
+$NestedGroupsJsonRaw = $NestedGroups | ConvertTo-Json -Depth 99
 
 ##################
 
@@ -374,9 +408,6 @@ $template += @"
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link color-secondary font-bold px-4" id="persona-report-tab" data-bs-toggle="tab" data-bs-target="#persona-report-tab-pane" type="button" role="tab" aria-controls="persona-report-tab-pane" aria-selected="true">Persona Report</button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link color-secondary font-bold px-4" id="persona-tab" data-bs-toggle="tab" data-bs-target="#persona-tab-pane" type="button" role="tab" aria-controls="persona-tab-pane" aria-selected="true">Decision Tree</button>
         </li>
     </ul>
 
@@ -664,18 +695,17 @@ $template += @"
                 
 $template += @"
             </table>                 
-                    
-        </div> 
 
-        <div class="tab-pane fade show" id="persona-tab-pane" role="tabpanel" aria-labelledby="persona-tab" tabindex="4">
+            <hr class="mt-5 mb-5"/>
+            <h5 class="font-bold color-secondary mb-2 mt-2">Entra Nested Groups Visualization</h5>
+            <p>This visualization shows the nested groups in your Entra tenant. It can be used to understand the group (a.k.a persona) hierarchy in Conditional Access and how groups are nested within each other.</p>
             <p class="small text-secondary mt-3 mb-1">If the chart below doesn't load, please refresh with this button:</p>
             <button class="btn btn-secondary rounded" onclick="refreshAllIframes()"  data-bs-toggle="tooltip" data-bs-title="Click to refresh the iframe">
                 <i class="bi bi-arrow-clockwise ms-2"></i>
                 Refresh 
             </button>
-            <iframe class="mt-3 rounded" src="https://www.jbaes.be/CAF/CA-flow" width="100%" height="800px"></iframe>
+            <iframe class="mt-3 rounded" id="nestedGroupsJsoncrackEmbed" src="https://jsoncrack.com/widget" width="100%" height="800px"></iframe>
         </div> 
-    </div>
 "@
 
 $template += @"
@@ -738,17 +768,24 @@ $template += @"
                 }
 
                 const jsonCrackEmbed = document.querySelector("#jsoncrackEmbed");
-
                 let json = JSON.stringify($CAjsonRaw);
-                let options = { theme: "light" }
+                let options = { theme: "light" };
 
-                console.log(json)
-                
-                window?.addEventListener("message", (event) => {
-                    jsonCrackEmbed.contentWindow.postMessage({
-                    json, options
-                    }, "*");
-                });
+                // NestedGroups JSON Crack injection
+                const nestedGroupsJsoncrackEmbed = document.querySelector("#nestedGroupsJsoncrackEmbed");
+                let nestedGroupsJson = JSON.stringify($NestedGroupsJsonRaw);
+
+                // Inject JSON only after iframe loads, not on every message event
+                if (jsonCrackEmbed) {
+                    jsonCrackEmbed.onload = function() {
+                        jsonCrackEmbed.contentWindow.postMessage({ json, options }, "*");
+                    };
+                }
+                if (nestedGroupsJsoncrackEmbed) {
+                    nestedGroupsJsoncrackEmbed.onload = function() {
+                        nestedGroupsJsoncrackEmbed.contentWindow.postMessage({ json: nestedGroupsJson, options }, "*");
+                    };
+                }
 
                 const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
                 const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
