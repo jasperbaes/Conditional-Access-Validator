@@ -48,6 +48,7 @@ For more information, visit:
 . ([System.IO.Path]::Combine($PSScriptRoot, 'scripts/user-impact-matrix.ps1'))
 . ([System.IO.Path]::Combine($PSScriptRoot, 'scripts/persona-report.ps1'))
 . ([System.IO.Path]::Combine($PSScriptRoot, 'scripts/nested-groups.ps1'))
+. ([System.IO.Path]::Combine($PSScriptRoot, 'scripts/hunting.ps1'))
 
 # Get current version
 $jsonContent = Get-Content -Path "./assets/latestVersion.json" -Raw | ConvertFrom-Json
@@ -219,6 +220,13 @@ $PersonaReport = Get-PersonaReport $conditionalAccessPolicies
 
 $NestedGroups = Get-NestedGroups
 $NestedGroupsJsonRaw = $NestedGroups | ConvertTo-Json -Depth 99
+
+###################
+# HUNTING QUERIES #
+###################
+
+$huntingResults = Get-HuntingResults
+# Write-Output ($huntingResults | ConvertTo-Json -Depth 99)
 
 ##################
 
