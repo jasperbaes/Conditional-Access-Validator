@@ -4,7 +4,10 @@ param (
     [int]$UserImpactMatrixLimit,
     [string]$RemovePersonaURL,
     [string]$AddPersonaURL,
-    [switch]$Help
+    [switch]$Help,
+    [switch]$SkipMaesterTests,
+    [switch]$SkipPersonaReport,
+    [switch]$SkipNestedGroups
 )
 
 if ($Help) {
@@ -20,6 +23,9 @@ Options:
     -UserImpactMatrixLimit   Limit the number of users in the User Impact Matrix.
     -RemovePersonaURL        Custom URL for removing personas from policies.
     -AddPersonaURL           Custom URL for adding personas to policies.
+    -SkipMaesterTests        Skip generation of Maester tests.
+    -SkipPersonaReport       Skip generation of the Persona report.
+    -SkipNestedGroups        Skip visualization of nested groups.
     -Help                    Show this help message.
 
 Description:
@@ -31,6 +37,9 @@ Examples:
     .\run.ps1
     .\run.ps1 -IncludeReportOnly
     .\run.ps1 -UserImpactMatrixLimit 100
+    .\run.ps1 -SkipMaesterTests
+    .\run.ps1 -SkipPersonaReport
+    .\run.ps1 -SkipNestedGroups
     .\run.ps1 -Help
 
 For more information, visit:
@@ -171,27 +180,40 @@ if ($IncludeReportOnly) {
 
 Write-OutputSuccess "$($conditionalAccessPolicies.count) enabled Conditional Access policies detected"
 
+###################
+# HUNTING QUERIES #
+###################
+
+$huntingResults = Get-HuntingResults
+Write-Output ($huntingResults | ConvertTo-Json -Depth 99)
+
 ##################
 # TEST GENERATOR #
 ##################
 
-$MaesterTests = Create-Simulations $conditionalAccessPolicies
+$MaesterTests = @()
 
-##########################
-# MAESTER CODE GENERATOR #
-##########################
+if ($SkipMaesterTests) {
+    Write-OutputInfo "Skipping Maester Tests"
+} else {
+    $MaesterTests = Create-Simulations $conditionalAccessPolicies
 
-$templateMaester = Create-MaesterCode $MaesterTests $IncludeReportOnly
+    ##########################
+    # MAESTER CODE GENERATOR #
+    ##########################
 
-##############
-# JSON CRACK #
-##############
+    $templateMaester = Create-MaesterCode $MaesterTests $IncludeReportOnly
 
-$CAJSON = Get-ConditionalAccessFlowChart $MaesterTests
-    
+    ##############
+    # JSON CRACK #
+    ##############
+
+    $CAJSON = Get-ConditionalAccessFlowChart $MaesterTests
+    # $CAJSON | ConvertTo-Json -Depth 99 # Uncomment for debugging purposes
+    $CAjsonRaw = $CAJSON | ConvertTo-Json -Depth 99 # used in JSON Crack
+}
+
 $filenameTemplate = "$((Get-Date -Format 'yyyyMMddHHmm'))-$($ORGANIZATIONNAME)-ConditionalAccessMaesterTests"
-# $CAJSON | ConvertTo-Json -Depth 99 # Uncomment for debugging purposes
-$CAjsonRaw = $CAJSON | ConvertTo-Json -Depth 99 # used in JSON Crack
 
 ######################
 # User Impact Matrix #
@@ -212,21 +234,26 @@ if ($SkipUserImpactMatrix) {
 # Persona Report #
 ##################
 
-$PersonaReport = Get-PersonaReport $conditionalAccessPolicies
+$PersonaReport = @()
+
+if ($SkipPersonaReport) {
+    Write-OutputInfo "Skipping Persona Report"
+} else {
+    $PersonaReport = Get-PersonaReport $conditionalAccessPolicies
+}
 
 #################
 # NESTED GROUPS #
 #################
 
-$NestedGroups = Get-NestedGroups
-$NestedGroupsJsonRaw = $NestedGroups | ConvertTo-Json -Depth 99
+$PersonaReport = @()
 
-###################
-# HUNTING QUERIES #
-###################
-
-$huntingResults = Get-HuntingResults
-# Write-Output ($huntingResults | ConvertTo-Json -Depth 99)
+if ($SkipNestedGroups) {
+    Write-OutputInfo "Skipping Nested Groups"
+} else {
+    $NestedGroups = Get-NestedGroups
+    $NestedGroupsJsonRaw = $NestedGroups | ConvertTo-Json -Depth 99
+}
 
 ##################
 
@@ -416,6 +443,9 @@ $template += @"
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link color-secondary font-bold px-4" id="persona-report-tab" data-bs-toggle="tab" data-bs-target="#persona-report-tab-pane" type="button" role="tab" aria-controls="persona-report-tab-pane" aria-selected="true">Persona Report</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link color-secondary font-bold px-4" id="hunting-tab" data-bs-toggle="tab" data-bs-target="#hunting-tab-pane" type="button" role="tab" aria-controls="hunting-tab-pane" aria-selected="false">Hunting</button>
         </li>
     </ul>
 
@@ -714,9 +744,74 @@ $template += @"
             </button>
             <iframe class="mt-3 rounded" id="nestedGroupsJsoncrackEmbed" src="https://jsoncrack.com/widget" width="100%" height="800px"></iframe>
         </div> 
+
+        <div class="tab-pane fade show" id="hunting-tab-pane" role="tabpanel" aria-labelledby="table-tab" tabindex="5">
+            <div class="container-fluid p-3">
+                 <div class="row row-cols-1 row-cols-md-3 g-4">
 "@
 
+# Generate each card from the huntingResults, with a modal for each
+$huntingIndex = 0
+foreach ($result in $huntingResults) {
+    $modalId = "huntingModal$huntingIndex"
+    $cardId = "huntingCard$huntingIndex"
+    $template += @"
+        <div class="col">
+            <div class="card bg-light shadow-sm h-100 hunting-card" id="$cardId" data-index="$huntingIndex" style="cursor:pointer;">
+                <i class="bi bi-arrow-right position-absolute top-0 end-0 mt-3 me-3 text-secondary opacity-75"></i>
+                <div class="card-body">
+                    <h5 class="card-title color-secondary fs-1 font-bold">$($result.ResultAmount)</h5>
+                    <p class="card-text text-secondary fs-6">$($result.Title)</p>
+                </div>
+            </div>
+        </div>
+"@
+
+    # Modal for this card
+    $template += @"
+        <div class="modal fade" id="$modalId" tabindex="-1" aria-labelledby="${modalId}Label" aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-4 font-bold color-accent" id="${modalId}Label">$($result.Title)</h1>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="color-secondary fs-6">$($result.Description)</p>
+"@
+    # Only show table if there are results
+    if ($result.Result -and $result.Result.Count -gt 0) {
+        # Get column names from first object using .psobject.Properties.Name
+        $columns = $result.Result[0].psobject.Properties.Name
+        $template += '<div class="table-responsive"><table class="table table-hover fs-6"><thead><tr>'
+        foreach ($col in $columns) {
+            $template += "<th class='font-bold fs-6 color-secondary'>$col</th>"
+        }
+        $template += "</tr></thead><tbody class='color-secondary fs-6'>"
+        foreach ($row in $result.Result) {
+            $template += "<tr>"
+            foreach ($col in $columns) {
+                $template += "<td>$($row.$col)</td>"
+            }
+            $template += "</tr>"
+        }
+        $template += "</tbody></table></div>"
+    } else {
+        $template += '<p class="fs-6 color-secondary">No results found.</p>'
+    }
+    $template += @"
+                    </div>
+                </div>
+            </div>
+        </div>
+"@
+    $huntingIndex++
+}
+
 $template += @"
+                    </div>
+                </div>
+            </div>
             <p class="text-center mt-5 mb-0"><a class="color-primary font-bold text-decoration-none" href="https://github.com/jasperbaes/Conditional-Access-Validator" target="_blank">&#9889;Conditional Access Validator</a>, made by <a class="color-accent font-bold text-decoration-none" href="https://www.linkedin.com/in/jasper-baes" target="_blank">Jasper Baes</a></p>
             <p class="text-center mt-1 mb-0 small"><a class="color-secondary" href="https://github.com/jasperbaes/Conditional-Access-Validator" target="_blank">https://github.com/jasperbaes/Conditional-Access-Validator</a></p>
             <p class="text-center mt-1 mb-5 small">This tool is part of the <a class="color-secondary font-bold" href="https://jbaes.be/Conditional-Access-Blueprint" target="_blank">Conditional Access Blueprint</a>. Read the <a class="color-secondary font-bold" href="https://github.com/jasperbaes/Conditional-Access-Validator?tab=readme-ov-file#-license" target="_blank">license</a> for info about organizational profit-driven.</p>
@@ -821,6 +916,18 @@ $template += @"
                         document.body.removeChild(downloadLink);
                     });
                 }
+
+                // Add click event for hunting cards to show modals
+                document.querySelectorAll('.hunting-card').forEach(function(card) {
+                    card.addEventListener('click', function() {
+                        var idx = card.getAttribute('data-index');
+                        var modal = document.getElementById('huntingModal' + idx);
+                        if (modal) {
+                            var bsModal = new bootstrap.Modal(modal);
+                            bsModal.show();
+                        }
+                    });
+                });
 
             </script>
         </body>
