@@ -180,13 +180,6 @@ if ($IncludeReportOnly) {
 
 Write-OutputSuccess "$($conditionalAccessPolicies.count) enabled Conditional Access policies detected"
 
-###################
-# HUNTING QUERIES #
-###################
-
-$huntingResults = Get-HuntingResults
-Write-Output ($huntingResults | ConvertTo-Json -Depth 99)
-
 ##################
 # TEST GENERATOR #
 ##################
@@ -254,6 +247,13 @@ if ($SkipNestedGroups) {
     $NestedGroups = Get-NestedGroups
     $NestedGroupsJsonRaw = $NestedGroups | ConvertTo-Json -Depth 99
 }
+
+###################
+# HUNTING QUERIES #
+###################
+
+$huntingResults = Get-HuntingResults
+# Write-Output ($huntingResults | ConvertTo-Json -Depth 99)
 
 ##################
 
@@ -747,7 +747,7 @@ $template += @"
 
         <div class="tab-pane fade show" id="hunting-tab-pane" role="tabpanel" aria-labelledby="table-tab" tabindex="5">
             <div class="container-fluid p-3">
-                 <div class="row row-cols-1 row-cols-md-3 g-4">
+                 <div class="row row-cols-1 row-cols-md-4 g-4">
 "@
 
 # Generate each card from the huntingResults, with a modal for each
