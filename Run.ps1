@@ -206,7 +206,7 @@ if ($SkipMaesterTests) {
     $CAjsonRaw = $CAJSON | ConvertTo-Json -Depth 99 # used in JSON Crack
 }
 
-$filenameTemplate = "$((Get-Date -Format 'yyyyMMddHHmm'))-$($ORGANIZATIONNAME)-ConditionalAccessMaesterTests"
+$filenameTemplate = "$((Get-Date -Format 'yyyyMMddHHmm'))-$($ORGANIZATIONNAME)-ConditionalAccessValidator"
 
 ######################
 # User Impact Matrix #
@@ -344,7 +344,7 @@ $template = @"
                 <p class="text-center mt-3 mb-2 color-secondary">Part of the <a href="https://jbaes.be/Conditional-Access-Blueprint" target="_blank" class="font-bold color-secondary">Conditional Access Blueprint</a> framework</p>
                 <i class="bi bi-question-circle position-absolute pointer color-secondary" style="top: 10px; right: 10px;" data-bs-toggle="modal" data-bs-target="#infoModal"></i>
 
-                <div class="modal fade" id="infoModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                <div class="modal fade m-0" id="infoModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
                     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
                         <div class="modal-content">
                             <div class="modal-header">
@@ -445,7 +445,7 @@ $template += @"
             <button class="nav-link color-secondary font-bold px-4" id="persona-report-tab" data-bs-toggle="tab" data-bs-target="#persona-report-tab-pane" type="button" role="tab" aria-controls="persona-report-tab-pane" aria-selected="true">Persona Report</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link color-secondary font-bold px-4" id="hunting-tab" data-bs-toggle="tab" data-bs-target="#hunting-tab-pane" type="button" role="tab" aria-controls="hunting-tab-pane" aria-selected="false">Hunting</button>
+            <button class="nav-link color-secondary font-bold px-4" id="hunting-tab" data-bs-toggle="tab" data-bs-target="#hunting-tab-pane" type="button" role="tab" aria-controls="hunting-tab-pane" aria-selected="false">Stats</button>
         </li>
     </ul>
 
@@ -747,7 +747,7 @@ $template += @"
 
         <div class="tab-pane fade show" id="hunting-tab-pane" role="tabpanel" aria-labelledby="table-tab" tabindex="5">
             <div class="container-fluid p-3">
-                 <div class="row row-cols-1 row-cols-md-4 g-4">
+                 <div class="row row-cols-1 row-cols-md-5 g-4">
 "@
 
 # Generate each card from the huntingResults, with a modal for each
@@ -762,6 +762,7 @@ foreach ($result in $huntingResults) {
                 <div class="card-body">
                     <h5 class="card-title color-secondary fs-1 font-bold">$($result.ResultAmount)</h5>
                     <p class="card-text text-secondary fs-6">$($result.Title)</p>
+                    <p class="card-text text-secondary small"><small class="color-lightgrey">KQL query by <a class="text-decoration-none text-secondary" href="$($result.AuthorURL)" target="_blank">$($result.Author)</a></small></p>
                 </div>
             </div>
         </div>
@@ -769,7 +770,7 @@ foreach ($result in $huntingResults) {
 
     # Modal for this card
     $template += @"
-        <div class="modal fade" id="$modalId" tabindex="-1" aria-labelledby="${modalId}Label" aria-hidden="true">
+        <div class="modal fade m-0" id="$modalId" tabindex="-1" aria-labelledby="${modalId}Label" aria-hidden="true">
             <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
                 <div class="modal-content">
                     <div class="modal-header">

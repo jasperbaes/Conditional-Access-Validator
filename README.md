@@ -12,6 +12,8 @@
      <a href="https://github.com/jasperbaes/Conditional-Access-Validator#-usage">Usage</a>
     ·
     <a href="https://github.com/jasperbaes/Conditional-Access-Validator/issues">Report Bug</a>
+    ·
+    <a href="https://github.com/jasperbaes/Conditional-Access-Validator?tab=readme-ov-file#-license">License</a>
   </p>
 </p>
 
@@ -106,6 +108,8 @@ Discovered a bug or do you have an improvement? Create an <a href="https://githu
 
 Release version numbers: YEAR.WEEK
 
+- 2025.26
+  - add stats (KQL queries)
 - 2025.24
   - add nested group chart
 - 2025.22
@@ -122,7 +126,6 @@ Release version numbers: YEAR.WEEK
   - Add device properties
   - Add other access controls
   - Add session controls
-- Add error handeling
 - Add search field and filters to HTML (CA policy, CA state)
 - Impact Matrix
   - add user impact changes in past 30 days audit logs
@@ -131,9 +134,6 @@ Release version numbers: YEAR.WEEK
 - Conditional Access documentations
 - Conditional Access hygiene tests  
 - Refactor report to API approach
-- Advanced Hunting
-  - Show applications that can be scoped to an IP range (e.g. https://www.jbaes.be/posts/cloud-apps-ip-allowlisting)
-  - ...
 
 Want to contribute? Fork this repository and create a <a href="https://github.com/jasperbaes/Conditional-Access-Validator/pulls">Pull request</a>. The Conditional Access Validator architecture is modular.
 

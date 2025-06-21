@@ -28,7 +28,7 @@ AADSpnSignInEventsBeta | where TimeGenerated >= ago(30d) | where ErrorCode == 0 
             Title = "Changed Conditional Access Policies"
             Description = "This query detects changes to Conditional Access policies in the last 30 days, including modifications to policy settings and conditions."
             Query = @'
-AuditLogs | where SourceSystem == "Azure AD" | where OperationName == "Update conditional access policy" | where Result  == "success" | extend ChangedCaPolicy = tostring(TargetResources[0].displayName) //check to optimise this line | extend Actor = tostring(parse_json(tostring(InitiatedBy.user)).userPrincipalName) | extend NewGeneralSettings = parse_json(tostring(parse_json(tostring(TargetResources[0].modifiedProperties))[0].newValue)) | extend OldGeneralSettings = parse_json(tostring(parse_json(tostring(TargetResources[0].modifiedProperties))[0].oldValue)) | extend NewConditions = parse_json(tostring(parse_json(tostring(parse_json(tostring(TargetResources[0].modifiedProperties))[0].newValue)).conditions)) | extend OldConditions = parse_json(tostring(parse_json(tostring(parse_json(tostring(TargetResources[0].modifiedProperties))[0].oldValue)).conditions)) | extend ChangedUser = iff(tostring(OldConditions.users) != tostring(NewConditions.users),  true , false) | extend ChangedApplications = iff(tostring(OldConditions.applications) != tostring(NewConditions.applications),  true , false) | order by TimeGenerated | extend  ChangedClientAppTypes= iff(tostring(OldConditions.clientAppTypes) != tostring(NewConditions.clientAppTypes), true ,false) | extend ChangedLocations= iff(tostring(OldConditions.locations) != tostring(NewConditions.locations), true , false) | order by TimeGenerated | extend ChangedPlatforms= iff(tostring(OldConditions.platforms) != tostring(NewConditions.platforms),  true , false) | extend ChangedServicePrincipalRiskLevels= iff(tostring(OldConditions.servicePrincipalRiskLevels) != tostring(NewConditions.servicePrincipalRiskLevels),  true , false) | extend ChangedSignInRiskLevels= iff(tostring(OldConditions.signInRiskLevels) != tostring(NewConditions.signInRiskLevels),  true , false) | extend ChangedUserRiskLevels= iff(tostring(OldConditions.userRiskLevels) != tostring(NewConditions.userRiskLevels),  true , false) | extend ChangedGrantControl = iff(tostring(OldGeneralSettings.grantControls) != tostring(NewGeneralSettings.grantControls),  true , false) | extend ChangedState = iff(tostring(OldGeneralSettings.state) != tostring(NewGeneralSettings.state),  true , false) | extend ChangedSessionControl = iff(tostring(OldGeneralSettings.sessionControls) != tostring(NewGeneralSettings.sessionControls),  true , false) | where ChangedUser or ChangedApplications or ChangedClientAppTypes or ChangedLocations or ChangedPlatforms or ChangedServicePrincipalRiskLevels or ChangedSignInRiskLevels or ChangedUserRiskLevels or ChangedGrantControl or ChangedState or ChangedSessionControl | project TimeGenerated, Actor, ChangedCaPolicy, ChangedUser, ChangedApplications, ChangedLocations, ChangedPlatforms, ChangedServicePrincipalRiskLevels, ChangedSignInRiskLevels, ChangedUserRiskLevels, ChangedGrantControl, ChangedState, ChangedSessionControl
+AuditLogs | where SourceSystem == "Azure AD" | where OperationName == "Update conditional access policy" | where Result  == "success" | extend ChangedCaPolicy = tostring(TargetResources[0].displayName) //check to optimise this line | extend Actor = tostring(parse_json(tostring(InitiatedBy.user)).userPrincipalName) | extend NewGeneralSettings = parse_json(tostring(parse_json(tostring(TargetResources[0].modifiedProperties))[0].newValue)) | extend OldGeneralSettings = parse_json(tostring(parse_json(tostring(TargetResources[0].modifiedProperties))[0].oldValue)) | extend NewConditions = parse_json(tostring(parse_json(tostring(parse_json(tostring(TargetResources[0].modifiedProperties))[0].newValue)).conditions)) | extend OldConditions = parse_json(tostring(parse_json(tostring(parse_json(tostring(TargetResources[0].modifiedProperties))[0].oldValue)).conditions)) | extend ChangedUser = iff(tostring(OldConditions.users) != tostring(NewConditions.users),  true , false) | extend ChangedApplications = iff(tostring(OldConditions.applications) != tostring(NewConditions.applications),  true , false) | order by TimeGenerated | extend  ChangedClientAppTypes= iff(tostring(OldConditions.clientAppTypes) != tostring(NewConditions.clientAppTypes), true ,false) | extend ChangedLocations= iff(tostring(OldConditions.locations) != tostring(NewConditions.locations), true , false) | order by TimeGenerated | extend ChangedPlatforms= iff(tostring(OldConditions.platforms) != tostring(NewConditions.platforms),  true , false) | extend ChangedServicePrincipalRiskLevels= iff(tostring(OldConditions.servicePrincipalRiskLevels) != tostring(NewConditions.servicePrincipalRiskLevels),  true , false) | extend ChangedSignInRiskLevels= iff(tostring(OldConditions.signInRiskLevels) != tostring(NewConditions.signInRiskLevels),  true , false) | extend ChangedUserRiskLevels= iff(tostring(OldConditions.userRiskLevels) != tostring(NewConditions.userRiskLevels),  true , false) | extend ChangedGrantControl = iff(tostring(OldGeneralSettings.grantControls) != tostring(NewGeneralSettings.grantControls),  true , false) | extend ChangedState = iff(tostring(OldGeneralSettings.state) != tostring(NewGeneralSettings.state),  true , false) | extend ChangedSessionControl = iff(tostring(OldGeneralSettings.sessionControls) != tostring(NewGeneralSettings.sessionControls),  true , false) | where ChangedUser or ChangedApplications or ChangedClientAppTypes or ChangedLocations or ChangedPlatforms or ChangedServicePrincipalRiskLevels or ChangedSignInRiskLevels or ChangedUserRiskLevels or ChangedGrantControl or ChangedState or ChangedSessionControl | project ['Datetime'] = TimeGenerated, Actor, ChangedCaPolicy, ChangedUser, ChangedApplications, ChangedLocations, ChangedPlatforms, ChangedServicePrincipalRiskLevels, ChangedSignInRiskLevels, ChangedUserRiskLevels, ChangedGrantControl, ChangedState, ChangedSessionControl
 '@
             Author = 'Louis Mastelinck'
             AuthorURL = 'https://www.lousec.be/ad/detect-security-policy-changes/'
@@ -49,7 +49,7 @@ let ca_include_naming_convention = "CA-Include"; let ca_exclude_naming_conventio
             Title = "New Conditional Access Policies created"
             Description = "This query detects the creation of new Conditional Access policies in the last 30 days."
             Query = @'
-AuditLogs | where TimeGenerated >= ago(30d) | where SourceSystem == "Azure AD" | where OperationName == "Add conditional access policy" | where Result == "success" | extend Actor = InitiatedBy.user.userPrincipalName | extend CreatedCAPolicy = TargetResources[0].displayName | extend CAPolicySettings = TargetResources[0].modifiedProperties[0].newValue | project TimeGenerated, Actor, CreatedCAPolicy, CAPolicySettings
+AuditLogs | where TimeGenerated >= ago(30d) | where SourceSystem == "Azure AD" | where OperationName == "Add conditional access policy" | where Result == "success" | extend Actor = InitiatedBy.user.userPrincipalName | extend CreatedCAPolicy = TargetResources[0].displayName | extend CAPolicySettings = TargetResources[0].modifiedProperties[0].newValue | project ['Datetime'] = TimeGenerated, Actor, ['Created CA Policy'] = CreatedCAPolicy, ['CA Policy'] = CAPolicySettings
 '@
             Author = 'Louis Mastelinck'
             AuthorURL = 'https://www.lousec.be/ad/detect-security-policy-changes/'
@@ -59,7 +59,7 @@ AuditLogs | where TimeGenerated >= ago(30d) | where SourceSystem == "Azure AD" |
             Title = "Deleted Conditional Access Policies"
             Description = "This query detects the deletion of Conditional Access policies in the last 30 days."
             Query = @'
-AuditLogs | where TimeGenerated >= ago(30d) | where SourceSystem == "Azure AD" | where OperationName == "Delete conditional access policy" | where Result == "success" | extend Actor = InitiatedBy.user.userPrincipalName | extend DeletedCAPolicy = TargetResources[0].displayName | extend CAPolicySettings = TargetResources[0].modifiedProperties[0].oldValue | project TimeGenerated, Actor, DeletedCAPolicy, CAPolicySettings
+AuditLogs | where TimeGenerated >= ago(30d) | where SourceSystem == "Azure AD" | where OperationName == "Delete conditional access policy" | where Result == "success" | extend Actor = InitiatedBy.user.userPrincipalName | extend DeletedCAPolicy = TargetResources[0].displayName | extend CAPolicySettings = TargetResources[0].modifiedProperties[0].oldValue | project ['Datetime'] = TimeGenerated, Actor, ['Deleted CA Policy'] = DeletedCAPolicy, ['CA Policy'] = CAPolicySettings
 '@
             Author = 'Louis Mastelinck'
             AuthorURL = 'https://www.lousec.be/ad/detect-security-policy-changes/'
@@ -69,16 +69,50 @@ AuditLogs | where TimeGenerated >= ago(30d) | where SourceSystem == "Azure AD" |
             Title = "Browsers used"
             Description = "This query provides a summary of the browsers used in successful sign-ins over the last 30 days, excluding errors and empty user agents. It parses the user agent string to extract browser information."
             Query = @'
-AADSignInEventsBeta | where TimeGenerated >= ago(30d) | where isnotempty(UserAgent) | where ErrorCode == 0 | extend ParsedAgent = parse_json(parse_user_agent(UserAgent, "browser")) | extend Browser = strcat(tostring(ParsedAgent.Browser.Family), " ", tostring(ParsedAgent.Browser.MajorVersion), ".", tostring(ParsedAgent.Browser.MinorVersion)) | summarize Total = count() by Browser | sort by Total
+AADSignInEventsBeta | where TimeGenerated >= ago(30d) | where isnotempty(UserAgent) | where ErrorCode == 0 | extend ParsedAgent = parse_json(parse_user_agent(UserAgent, "browser")) | extend Browser = tostring(ParsedAgent.Browser.Family) | extend Browser = replace_string(Browser, "%20", " ") | summarize ['Total Sign-Ins'] = count() by Browser | sort by ['Total Sign-Ins'] desc
+'@
+            Author = 'Jasper Baes'
+            AuthorURL = 'https://www.linkedin.com/in/jasper-baes/'
+        },
+        @{
+            Id = "browserUsage"
+            Title = "Browsers and versions used"
+            Description = "This query provides a summary of the browsers and versions used in successful sign-ins over the last 30 days, excluding errors and empty user agents. It parses the user agent string to extract browser information."
+            Query = @'
+AADSignInEventsBeta | where TimeGenerated >= ago(30d) | where isnotempty(UserAgent) | where ErrorCode == 0 | extend ParsedAgent = parse_json(parse_user_agent(UserAgent, "browser")) | extend Browser = strcat(tostring(ParsedAgent.Browser.Family), " ", tostring(ParsedAgent.Browser.MajorVersion), ".", tostring(ParsedAgent.Browser.MinorVersion)) | summarize Total = count() by Browser | sort by Total | project ['Browser'] = Browser, ['Total Sign-Ins'] = Total
 '@
             Author = 'Bert-Jan Pals'
             AuthorURL = 'https://github.com/Bert-JanP/Hunting-Queries-Detection-Rules/blob/main/Azure%20Active%20Directory/SignInsByBrowser.md'
+        },
+        @{
+            Id = "InteractiveLegacyAuth"
+            Title = "Interactive sign-ins using legacy authentication"
+            Description = "This query identifies sign-ins using legacy authentication protocols, which are considered less secure. It filters sign-ins that do not use modern authentication methods and summarizes the results by application."
+            Query = @'
+SigninLogs | extend IsLegacyAuth = case(ClientAppUsed contains "Browser", "No", ClientAppUsed contains "Mobile Apps and Desktop clients", "No", ClientAppUsed contains "Exchange ActiveSync", "No", ClientAppUsed contains "Authenticated SMTP", "Yes", ClientAppUsed contains "Other clients", "Yes", "Unknown") | where IsLegacyAuth == 'Yes' | where ResultType == 0
+'@
+            Author = 'Alex Verboon'
+            AuthorURL = 'https://github.com/alexverboon/Hunting-Queries-Detection-Rules/blob/main/Azure%20Active%20Directory/AzureAD-BasicAuth.md'
+        },
+        @{
+            Id = "allLegacyAuth"
+            Title = "Interactive and noninteractive sign-ins using legacy authentication"
+            Description = "This query identifies both interactive and noninteractive sign-ins using legacy authentication protocols, which are considered less secure. It filters sign-ins that do not use modern authentication methods and summarizes the results by application."
+            Query = @'
+union  isfuzzy=true SigninLogs, AADNonInteractiveUserSignInLogs | extend IsLegacyAuth = case(ClientAppUsed contains "Browser", "No", ClientAppUsed contains "Mobile Apps and Desktop clients", "No", ClientAppUsed contains "Exchange ActiveSync", "No", ClientAppUsed contains "Authenticated SMTP", "Yes", ClientAppUsed contains "Other clients", "Yes", "Unknown") | where IsLegacyAuth == 'Yes' | where ResultType == 0
+'@
+            Author = 'Alex Verboon'
+            AuthorURL = 'https://github.com/alexverboon/Hunting-Queries-Detection-Rules/blob/main/Azure%20Active%20Directory/AzureAD-BasicAuth.md'
         }
     )
 
     $resultsTable = @()
+    $i = 0
 
     foreach ($q in $queries) {
+        $percentComplete = [math]::Round(($i / $queries.Count) * 100)
+        Write-Progress -Activity "     Running KQL queries for statistics..." -Status "$percentComplete% Complete" -PercentComplete $percentComplete
+
         $result = Invoke-HuntingQuery -Query $q.Query
 
         # Convert each hashtable in the result to a PSCustomObject
@@ -97,6 +131,8 @@ AADSignInEventsBeta | where TimeGenerated >= ago(30d) | where isnotempty(UserAge
             AuthorURL = $q.AuthorURL
             QueryURL = $q.QueryURL
         }
+
+        $i++
     }
 
     return $resultsTable
