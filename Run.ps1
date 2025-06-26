@@ -41,6 +41,7 @@ For more information, visit:
 }
 
 # Import scripts
+. ([System.IO.Path]::Combine($PSScriptRoot, 'scripts/test-psversion.ps1'))
 . ([System.IO.Path]::Combine($PSScriptRoot, 'scripts/shared.ps1'))
 . ([System.IO.Path]::Combine($PSScriptRoot, 'scripts/test-generator.ps1'))
 . ([System.IO.Path]::Combine($PSScriptRoot, 'scripts/maester-code-generator.ps1'))
