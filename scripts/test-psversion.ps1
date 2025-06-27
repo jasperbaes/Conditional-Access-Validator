@@ -29,5 +29,3 @@ param()
         # Stop script execution
         exit
     }
-    
-    Write-Host "PowerShell version check passed: Running PowerShell $currentVersion" -ForegroundColor Green
