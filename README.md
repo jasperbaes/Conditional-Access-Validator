@@ -106,12 +106,14 @@ Discovered a bug or do you have an improvement? Create an <a href="https://githu
 
 Release version numbers: YEAR.WEEK
 
+- 2025.26
+  - add PowerShell 7 check (by [Roy Klooster](https://github.com/jasperbaes/Conditional-Access-Validator/pull/4/files))
 - 2025.24
   - add nested group chart
 - 2025.22
   - add button to download CA policies
   - add local caching
-  - bug fix ([PowerBugi](https://github.com/jasperbaes/Conditional-Access-Validator/pull/1/files))
+  - bug fix (by [PowerBugi](https://github.com/jasperbaes/Conditional-Access-Validator/pull/1/files))
 - 2025.21
   - initial release (preview)
 
