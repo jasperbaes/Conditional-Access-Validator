@@ -1,12 +1,12 @@
 [CmdletBinding()]
 param()
     
-    $minimumVersion = [Version]"7.0.0"
-    $currentVersion = $PSVersionTable.PSVersion
+    $minimumPSVersion = [Version]"7.0.0"
+    $currentPSVersion = $PSVersionTable.PSVersion
     
-    if ($currentVersion -lt $minimumVersion) {
+    if ($currentPSVersion -lt $minimumPSVersion) {
         Write-Host "Error: This script requires PowerShell 7.0 or higher." -ForegroundColor Red
-        Write-Host "Current PowerShell version: $($currentVersion)" -ForegroundColor Red
+        Write-Host "Current PowerShell version: $($currentPSVersion)" -ForegroundColor Red
         Write-Host "Please install PowerShell 7 from https://github.com/PowerShell/PowerShell/releases" -ForegroundColor Yellow
         
         # Check if pwsh is installed but script was run in older version
