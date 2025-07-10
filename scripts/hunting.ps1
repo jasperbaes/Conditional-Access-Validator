@@ -11,7 +11,6 @@ function Invoke-HuntingQuery {
 }
 
 function Get-HuntingResults {
-    # Define queries with Id and Query properties
     $queries = @(
         @{
             Id = "UniqueIPPerApp"
@@ -103,11 +102,63 @@ union  isfuzzy=true SigninLogs, AADNonInteractiveUserSignInLogs | extend IsLegac
 '@
             Author = 'Alex Verboon'
             AuthorURL = 'https://github.com/alexverboon/Hunting-Queries-Detection-Rules/blob/main/Azure%20Active%20Directory/AzureAD-BasicAuth.md'
+        },
+        @{
+            Id = "FociTokenLogins"
+            Title = "Logins using FOCI tokens (Family of Client IDs tokens)"
+            Description = "This KQL query detects suspicious use of FOCI tokens by identifying sessions where a benign app (e.g., Teams) is followed by access to a high-risk app (e.g., Azure CLI) using a shared refresh token. The v2 version of this query enhances detection by flagging scope changes within the same app (e.g., RoadTools usage) and offers filters to reduce false positives."
+            Query = @'
+let maxTimeDiff = 90; let FociClientApplications = toscalar(externaldata(client_id: string) [@"https://raw.githubusercontent.com/secureworks/family-of-client-ids-research/refs/heads/main/known-foci-clients.csv"] with (format="csv", ignoreFirstRecord=true) | summarize FociClientId = make_list(client_id) ); let FociTokenRequest = materialize ( AADNonInteractiveUserSignInLogs | where TimeGenerated > ago(6h) | where HomeTenantId == ResourceTenantId | where AppId in (FociClientApplications) ); FociTokenRequest | where IncomingTokenType == "none" | join kind=inner ( FociTokenRequest | where IncomingTokenType != "none" | project-rename SecondAppDisplayName = AppDisplayName, SecondRequestTimeGenerated = TimeGenerated, SecondAppId = AppId ) on SessionId, UserPrincipalName | extend FirstOauthScopeInfo = extract("{\"key\":\"Oauth Scope Info\",\"value\":\"\\[(.*)\\]\"}", 1, AuthenticationProcessingDetails), SecondOauthScopeInfo = extract("{\"key\":\"Oauth Scope Info\",\"value\":\"\\[(.*)\\]\"}", 1, AuthenticationProcessingDetails1) | extend TimeDiff = datetime_diff('minute', SecondRequestTimeGenerated, TimeGenerated) | where TimeDiff >= 1 and TimeDiff <= maxTimeDiff | project FirstRequestTimeGenerated = TimeGenerated, FirstResult = ResultType, FirstResultDescription = ResultDescription, Identity, Location, FirstAppDisplayName = AppDisplayName, FirstAppId = AppId, ClientAppUsed, DeviceDetail, SecondDeviceDetail = DeviceDetail1, IPAddress, LocationDetails, UserAgent, SecondRequestTimeGenerated, SecondResult = ResultType, SecondResultDescription = ResultDescription1, SecondAppDisplayName, SecondAppId, SeconIncomingTokenType = IncomingTokenType1, SessionId, TimeDiff, FirstOauthScopeInfo, SecondOauthScopeInfo, FirstResourceIdentity = ResourceIdentity, SecondResourceIdentity = ResourceIdentity1 | where SecondAppDisplayName in ("Microsoft Azure CLI", "Copilot App", "Microsoft Azure PowerShell", "Visual Studio - Legacy", "Microsoft Edge Enterprise New Tab Page") and SecondResourceIdentity == "00000002-0000-0000-c000-000000000000" | where SecondResult == 0
+'@
+            Author = 'Robbe Van den Daele'
+            AuthorURL = 'https://github.com/HybridBrothers/Hunting-Queries-Detection-Rules/blob/main/Entra%20ID/DetectSuspiciousFociTokenLoginsV2.md'
+        },
+        @{
+            Id = "sensitiveMsGraphPermissions"
+            Title = "Logins with access to sensitive Microsoft Graph permissions"
+            Description = "The query retrieves sensitive Microsoft Graph permissions for ControlPlane tier and analyzes sign-in logs for Microsoft Graph with delegated scopes, including details about devices, authentication methods, and risk levels."
+            Query = @'
+let SensitiveMsGraphPermissions = externaldata(EAMTierLevelName: string, Category: string, AppRoleDisplayName: string)["https://raw.githubusercontent.com/Cloud-Architekt/AzurePrivilegedIAM/main/Classification/Classification_AppRoles.json"] with(format='multijson') | where EAMTierLevelName == "ControlPlane" | project AppRoleDisplayName; let SignInsWithDelegatedScope = union SigninLogs, AADNonInteractiveUserSignInLogs | where ResourceDisplayName == "Microsoft Graph" | extend JsonAuthProcDetails = parse_json(AuthenticationProcessingDetails) | extend JsonAuthCaeDetails = parse_json(AuthenticationProcessingDetails) | mv-apply JsonAuthProcDetails on ( where JsonAuthProcDetails.key startswith "Oauth Scope Info" | project OAuthDelegatedScope=JsonAuthProcDetails.value ) | mv-apply JsonAuthCaeDetails on ( where JsonAuthCaeDetails.key startswith "Is CAE Token" | project IsCaeToken=JsonAuthCaeDetails.value ) | extend DeviceDetail = iff(isempty( DeviceDetail_dynamic ), todynamic(DeviceDetail_string), DeviceDetail_dynamic) | extend DeviceName = tostring(toupper(DeviceDetail.displayName)) | extend DeviceOS = tostring(parse_json(DeviceDetail).operatingSystem) | extend DeviceTrust = tostring(parse_json(DeviceDetail).trustType) | extend DeviceCompliance = tostring(parse_json(DeviceDetail).isCompliant) | extend AuthenticationMethod = tostring(parse_json(AuthenticationDetails)[0].authenticationMethod) | extend AuthenticationDetail = tostring(parse_json(AuthenticationDetails)[0].authenticationStepResultDetail) | project TimeGenerated, CorrelationId, UserPrincipalName, RiskLevelDuringSignIn, RiskState, AppDisplayName, ResourceDisplayName, OAuthDelegatedScope, AuthenticationMethod, AuthenticationDetail, DeviceName, DeviceOS, DeviceTrust, DeviceCompliance, IsCaeToken; SignInsWithDelegatedScope
+'@
+            Author = 'Thomas Naunheim'
+            AuthorURL = 'https://github.com/Cloud-Architekt/AzureSentinel/blob/main/Hunting%20Queries/EID-PrivilegedIdentities/SensitiveMicrosoftGraphDelegatedPermissionAccess.kusto'
+        },
+        @{
+            Id = "usersWithPasskey"
+            Title = "Users using Passkey for authentication"
+            Description = "This query identifies users who have used Passkey as an authentication method in the last 30 days. It filters out common methods like 'Previously satisfied', 'Password', and 'Other' to focus on distinct MFA methods."
+            Query = @'
+SigninLogs | where TimeGenerated > ago(30d) | where UserType == "Member" | mv-expand todynamic(AuthenticationDetails) | extend ['Authentication Method'] = tostring(AuthenticationDetails.authenticationMethod) | where ['Authentication Method'] !in ("Previously satisfied", "Password", "Other") | where isnotempty(['Authentication Method']) | summarize ['List of MFA Methods']=make_set(['Authentication Method']) by UserPrincipalName | where  ['List of MFA Methods'] has "Passkey" 
+'@
+            Author = 'Jasper Baes'
+            AuthorURL = 'https://www.linkedin.com/in/jasper-baes/'
+        },
+        @{
+            Id = "usersWithSMS"
+            Title = "Users using SMS authentication"
+            Description = "This query identifies users who have used SMS as an authentication method in the last 30 days. It filters out common methods like 'Previously satisfied', 'Password', and 'Other' to focus on distinct MFA methods."
+            Query = @'
+SigninLogs | where TimeGenerated > ago(30d) | where UserType == "Member" | mv-expand todynamic(AuthenticationDetails) | extend ['Authentication Method'] = tostring(AuthenticationDetails.authenticationMethod) | where ['Authentication Method'] !in ("Previously satisfied", "Password", "Other") | where isnotempty(['Authentication Method']) | summarize ['List of MFA Methods']=make_set(['Authentication Method']) by UserPrincipalName | where  ['List of MFA Methods'] has "Text message" 
+'@
+            Author = 'Jasper Baes'
+            AuthorURL = 'https://www.linkedin.com/in/jasper-baes/'
+        },
+        @{
+            Id = "usersWithOnlySMS"
+            Title = "Users using only SMS authentication"
+            Description = "This query identifies users who have used SMS as their only authentication method in the last 30 days. It filters out common methods like 'Previously satisfied', 'Password', and 'Other' to focus on distinct MFA methods."
+            Query = @'
+SigninLogs | where TimeGenerated > ago(30d) | where UserType == "Member" | mv-expand todynamic(AuthenticationDetails) | extend ['Authentication Method'] = tostring(AuthenticationDetails.authenticationMethod) | where ['Authentication Method'] !in ("Previously satisfied", "Password", "Other") | where isnotempty(['Authentication Method']) | summarize ['List of MFA Methods']=make_set(['Authentication Method']) by UserPrincipalName | where tostring(['List of MFA Methods']) == tostring(dynamic(["Text message"]))
+'@
+            Author = 'Jasper Baes'
+            AuthorURL = 'https://www.linkedin.com/in/jasper-baes/'
         }
     )
 
     $resultsTable = @()
     $i = 0
+
+    # $queries = $queries | Select-Object -Last 2 # uncomment for development purposes, comment for production
 
     foreach ($q in $queries) {
         $percentComplete = [math]::Round(($i / $queries.Count) * 100)
