@@ -75,10 +75,14 @@ function Get-ConditionalAccessFlowChart  {
                 }
             }
 
-            $arr += @{
-                $test1.appName = $arr1
+            # Only add if appName is not null or empty
+            if ($null -ne $test1.appName -and $test1.appName -ne "") {
+                $arr += @{
+                    $test1.appName = $arr1
+                }
+            } else {
+                $arr += @{ "UNKNOWN APP NAME" = $arr1 }
             }
-
         }
 
         $CAJSON[$UPN] = $arr
